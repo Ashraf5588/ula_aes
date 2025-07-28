@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subject Management | AES Admin</title>  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/adminpannel.css">
+  <link rel="stylesheet" href="/nav.css">
+  <link rel="stylesheet" href="/subject-list.css">
+  <link rel="stylesheet" href="/bootstrap-table.css">
+</head>
+<body>
+  <%- include('../partials/nav',{currentPage:'admin'}) %>
+  
+  <%- include('../partials/sidenav', { 
+      subjects: subjects, 
+      studentClassdata: studentClassdata,
+      terminals: terminals 
+  }) %>
+
+
+  <div class="subject-container">
+  <h1 class="subject-title">Welcome to <span>Subject Management,</span></h1>
+    <!-- Creating form dynamically popup input fields -->  <script>
+  const editing = "<%= editing ? 'true' : 'false' %>";
+  const subjectedit = <%- editing ? JSON.stringify(subjectedit || {}) : '{}' %>;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (editing === 'true') {
+      generateInput();
+
+      // Add form validation on submit
+      const form = document.querySelector('.subject-form');
+      form.addEventListener('submit', validateForm);
+    } else {
+      // Make form field generation happen for new subjects too
+      const maxField = document.getElementById("max");
+      if (maxField && maxField.value) {
+        generateInput();
+      }
+
+      // Add form validation on submit
+      const form = document.querySelector('.subject-form');
+      form.addEventListener('submit', validateForm);
+    }
+  });
+    // Form validation function
+  function validateForm(event) {
+    const subjectField = document.getElementById('subject');
+    const maxField = document.getElementById('max');
+
+    // Basic validation
+    if (!subjectField.value.trim()) {
+      alert('Please enter a subject name');
+      event.preventDefault();
+      return false;
+    }
+
+    if (!maxField.value || parseInt(maxField.value) <= 0) {
+      alert('Please enter a valid number of maximum questions');
+      event.preventDefault();
+      return false;
+    }
+
+    // Check if all sub-question counts are valid
+    const max = parseInt(maxField.value);
+    for (let i = 1; i <= max; i++) {
+      const subQInput = document.getElementById(`subQuestion${i}`);
+      if (!subQInput || !subQInput.value || parseInt(subQInput.value) <= 0) {
+        alert(`Please enter a valid number of sub-questions for question ${i}`);
+        event.preventDefault();
+        return false;
+      }
+
+      // Check all marks inputs for this question - now they all have the same name
+      const subQCount = parseInt(subQInput.value);
+      const markInputs = document.querySelectorAll(`#subFmContainer${i} input[type="number"].fm-input`);
+
+      // Verify we have the correct number of inputs
+      if (markInputs.length !== subQCount) {
+        console.warn(`Expected ${subQCount} mark inputs for Q${i}, found ${markInputs.length}`);
+      }
+
+      // Check each mark input
+      for (let j = 0; j < markInputs.length; j++) {
+        const markInput = markInputs[j];
+        if (!markInput.value || isNaN(parseFloat(markInput.value)) || parseFloat(markInput.value) < 0) {
+          const subQ = j + 1; // Add 1 because j is 0-based
+          alert(`Please enter a valid mark value for Q${i}.${String.fromCharCode(96 + subQ)}`);
+          markInput.focus();
+          event.preventDefault();
+          return false;
+        }
+      }
+    }
+
+    // If we're in edit mode but no file is selected, make sure we have the current file
+    if (editing === 'true') {
+      const fileInput = document.getElementById('questionPaper');
+      if (fileInput.files.length === 0) {
+        const currentFileInput = document.querySelector('input[name="currentQuestionPaper"]');
+        if (!currentFileInput || !currentFileInput.value) {
+          // If we don't have a current file and no new file is selected, alert the user
+          if (!confirm('No question paper selected. Continue without a question paper?')) {
+            event.preventDefault();
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+  function generateInput() {
+    const number = parseInt(document.getElementById("max").value);
+    const subContainer = document.getElementById("subQuestionContainer");
+    subContainer.innerHTML = "";
+
+    if (number <= 0) {
+      subContainer.innerHTML = '<div style="color: red; margin-top: 10px;">Please enter a valid maximum question number</div>';
+      return;
+    }
+
+    console.log("Generating input fields for", number, "questions");
+    console.log("Edit mode:", editing);
+    if (editing === 'true') {
+      console.log("Subject edit data:");
+    } else {
+      console.log("Not in edit mode, generating new fields");
+    }
+
+    for (let i = 1; i <= number; i++) {
+      // Create question container for better organization
+      const questionContainer = document.createElement("div");
+      questionContainer.className = "question-container";
+
+      // Question number heading for better clarity
+      const qHeading = document.createElement("h4");
+      qHeading.textContent = `Question ${i}`;
+      qHeading.className = "question-heading";
+      qHeading.style.marginTop = "20px";
+      qHeading.style.marginBottom = "10px";
+      qHeading.style.color = "#0d6efd";
+      qHeading.style.borderBottom = "1px solid #dee2e6";
+      qHeading.style.paddingBottom = "5px";
+      questionContainer.appendChild(qHeading);
+
+      // Create a row for the two inputs
+      const inputRow = document.createElement("div");
+      inputRow.className = "input-row";
+      inputRow.style.display = "flex";
+      inputRow.style.gap = "10px";
+      inputRow.style.alignItems = "flex-start";
+      inputRow.style.marginBottom = "15px";
+
+      // First column - sub-question count
+      const countColumn = document.createElement("div");
+      countColumn.style.flex = "1";
+
+      const countLabel = document.createElement("label");
+      countLabel.textContent = `Sub Questions in Q.No ${i}:`;
+      countLabel.className = "question-label";
+      countLabel.style.display = "block";
+      countLabel.style.marginBottom = "5px";
+      countColumn.appendChild(countLabel);
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.name = `subq_count${i}`;
+      input.id = `subQuestion${i}`;
+      input.required = true;
+      input.placeholder = `Number of sub-questions`;
+      input.className = "sub-input";
+      input.min = "1";
+      input.dataset.questionNumber = i;
+      input.style.width = "100%";
+      countColumn.appendChild(input);
+
+      // Second column - mark per sub-question
+      const markColumn = document.createElement("div");
+      markColumn.style.flex = "1";
+
+      const markLabel = document.createElement("label");
+      markLabel.textContent = `Marks per sub-question:`;
+      markLabel.className = "question-label";
+      markLabel.style.display = "block";
+      markLabel.style.marginBottom = "5px";
+      markColumn.appendChild(markLabel);
+
+      const markInput = document.createElement("input");
+      markInput.type = "number";
+      markInput.id = `markPerSubQ${i}`;
+      markInput.placeholder = "Marks per sub-question";
+      markInput.className = "mark-per-sub-input";
+      markInput.min = "0.1";
+      markInput.step = "0.1";
+      markInput.style.width = "100%";
+      markColumn.appendChild(markInput);
+
+      // Quick format label
+      const formatInfo = document.createElement("div");
+      formatInfo.className = "format-info";
+      formatInfo.innerHTML = '<small class="text-muted">Format: [count]x[marks] or [count]*[marks] (e.g., "5x2" or "5*2")</small>';
+      formatInfo.style.marginTop = "10px";
+      formatInfo.style.marginBottom = "5px";
+
+      // Single input for format like "5x2"
+      const formatColumn = document.createElement("div");
+      formatColumn.style.flex = "1";
+
+      const formatLabel = document.createElement("label");
+      formatLabel.textContent = `Quick Format (e.g., 5x2 or 5*2):`;
+      formatLabel.className = "question-label";
+      formatLabel.style.display = "block";
+      formatLabel.style.marginBottom = "5px";
+      formatColumn.appendChild(formatLabel);
+
+      const formatInput = document.createElement("input");
+      formatInput.type = "text";
+      formatInput.id = `format${i}`;
+      formatInput.placeholder = "e.g., 5x2 or 5*2 for 5 sub-questions of 2 marks each";
+      formatInput.className = "format-input";
+      formatInput.style.width = "100%";
+      formatColumn.appendChild(formatInput);
+
+      // Add quick format input event
+      formatInput.addEventListener('input', function() {
+        const formatValue = this.value.trim();
+        // Check if the input matches the pattern NxM or N*M where N and M are numbers
+        const formatMatch = formatValue.match(/^(\d+)[x*](\d*\.?\d+)$/);
+
+        if (formatMatch) {
+          const count = parseInt(formatMatch[1]);
+          const markValue = parseFloat(formatMatch[2]);
+
+          // Set the count and mark values in their respective inputs
+          if (count > 0) {
+            document.getElementById(`subQuestion${i}`).value = count;
+          }
+
+          if (markValue > 0) {
+            document.getElementById(`markPerSubQ${i}`).value = markValue;
+          }
+
+          // Generate the sub marks fields
+          if (count > 0) {
+            generateSubFullMarks(i, count, i, markValue);
+          }
+        }
+      });
+
+      // Check for existing values in edit mode
+      let subQCount = 0;
+      if (editing === 'true' && typeof subjectedit !== 'undefined') {
+        if (subjectedit[i]) {
+          if (Array.isArray(subjectedit[i])) {
+            // If it's an array, the first element could be the count or we determine count from array length
+            if (subjectedit[i][0] && !isNaN(parseInt(subjectedit[i][0]))) {
+              // First element is the count
+              subQCount = parseInt(subjectedit[i][0]);
+            } else {
+              // Count is the array length minus the hidden count field
+              subQCount = subjectedit[i].length > 0 ? subjectedit[i].length - 1 : 0;
+            }
+
+            input.value = subQCount;
+            console.log(`Question ${i}: Setting sub-question count to ${subQCount} from array:`, subjectedit[i]);
+          } else {
+            // If not an array, use the value directly
+            input.value = subjectedit[i];
+            subQCount = parseInt(subjectedit[i]);
+            console.log(`Question ${i}: Setting sub-question count to ${subQCount} from value:`, subjectedit[i]);
+          }
+        }
+      }
+
+      // Add input event for sub-question count
+      input.addEventListener('input', function() {
+        const markPerSubQ = document.getElementById(`markPerSubQ${i}`).value || 0;
+        generateSubFullMarks(i, this.value, i, markPerSubQ);
+      });
+
+      // Add input event for mark per sub-question
+      markInput.addEventListener('input', function() {
+        const subQCount = document.getElementById(`subQuestion${i}`).value;
+        if (subQCount && parseInt(subQCount) > 0) {
+          generateSubFullMarks(i, subQCount, i, this.value);
+        }
+      });
+
+      // Add columns to the row
+      inputRow.appendChild(countColumn);
+      inputRow.appendChild(markColumn);
+
+      // Create another row for the format input
+      const formatRow = document.createElement("div");
+      formatRow.style.display = "flex";
+      formatRow.style.marginBottom = "15px";
+      formatRow.appendChild(formatColumn);
+
+      // Add rows to the container
+      questionContainer.appendChild(inputRow);
+      questionContainer.appendChild(formatRow);
+
+      const fmDiv = document.createElement("div");
+      fmDiv.id = `subFmContainer${i}`;
+      fmDiv.className = "fm-container";
+      fmDiv.style.marginTop = "10px";
+      fmDiv.style.backgroundColor = "#f8f9fa";
+      fmDiv.style.padding = "10px";
+      fmDiv.style.borderRadius = "5px";
+      questionContainer.appendChild(fmDiv);
+
+      subContainer.appendChild(questionContainer);
+
+      // Generate initial full marks inputs if value exists
+      if (input.value && parseInt(input.value) > 0) {
+        generateSubFullMarks(i, input.value, i);
+      }
+    }
+  }  function generateSubFullMarks(index, count, name, markPerSubQ = null) {
+    const container = document.getElementById(`subFmContainer${index}`);
+    container.innerHTML = "";
+
+    let number = parseInt(count);
+
+    if (isNaN(number) || number <= 0) {
+      container.innerHTML = '<div style="color: red; margin: 10px 0;">Please enter a valid count (minimum 1)</div>';
+      return;
+    }
+
+    // Show a summary of the marks structure
+    const summary = document.createElement("div");
+    summary.className = "marks-summary";
+    summary.style.marginBottom = "15px";
+    summary.style.padding = "5px 10px";
+    summary.style.backgroundColor = "#e3f2fd";
+    summary.style.borderRadius = "5px";
+    summary.style.borderLeft = "4px solid #0d6efd";
+
+    if (markPerSubQ && !isNaN(parseFloat(markPerSubQ)) && parseFloat(markPerSubQ) > 0) {
+      const totalMarks = number * parseFloat(markPerSubQ);
+      summary.innerHTML = `<b>Summary:</b> ${number} sub-questions × ${markPerSubQ} marks each = ${totalMarks} total marks`;
+    } else {
+      summary.innerHTML = `<b>Summary:</b> ${number} sub-questions`;
+    }
+
+    container.appendChild(summary);
+
+    // Create a heading for the sub-questions section
+    const heading = document.createElement("div");
+    heading.className = "fm-heading";
+    heading.textContent = `Full marks for each sub-question in Q.${index}:`;
+    container.appendChild(heading);
+
+    // Create a wrapper for the inputs
+    const inputsWrapper = document.createElement("div");
+    inputsWrapper.className = "fm-inputs-wrapper";
+    inputsWrapper.style.display = "grid";
+    inputsWrapper.style.gridTemplateColumns = "repeat(auto-fill, minmax(150px, 1fr))";
+    inputsWrapper.style.gap = "10px";
+
+    // Add a hidden input with the sub-question count as the first element in the array
+    const countInput = document.createElement("input");
+    countInput.type = "hidden";
+    countInput.name = `${index}`; // Same name as mark inputs to be part of array
+    countInput.value = number;    // This is the sub-question count
+    inputsWrapper.appendChild(countInput);
+
+    // Now add the mark inputs - all with the same name to create an array
+    for (let i = 1; i <= number; i++) {
+      const inputContainer = document.createElement("div");
+      inputContainer.className = "fm-input-container";
+
+      const label = document.createElement("label");
+      label.textContent = `Q${index}.${String.fromCharCode(96 + i)}:`;
+      label.className = "fm-label";
+      inputContainer.appendChild(label);
+
+      const fmInput = document.createElement("input");
+      fmInput.type = "number";
+      fmInput.name = `${name}`; // Using the same name to make all inputs part of the same array
+      fmInput.placeholder = `Marks`;
+      fmInput.required = true;
+      fmInput.step = "0.01";
+      fmInput.className = "fm-input";
+      fmInput.dataset.subQuestion = i; // Add data attribute to help with debugging
+
+      // If markPerSubQ is provided, use that value for all inputs
+      if (markPerSubQ && !isNaN(parseFloat(markPerSubQ)) && parseFloat(markPerSubQ) > 0) {
+        fmInput.value = parseFloat(markPerSubQ);
+      }
+      // Otherwise, set value if editing and value exists in subjectedit
+      else if (editing === 'true' && subjectedit) {
+        if (subjectedit[index] && Array.isArray(subjectedit[index]) && i < subjectedit[index].length) {
+          fmInput.value = subjectedit[index][i];
+          console.log(`Setting mark for Q${index}.${String.fromCharCode(96+i)} to ${subjectedit[index][i]}`);
+        }
+      }
+
+      inputContainer.appendChild(fmInput);
+      inputsWrapper.appendChild(inputContainer);
+    }
+
+    container.appendChild(inputsWrapper);
+
+    // Add a button to apply the same marks to all inputs
+    const applyAllContainer = document.createElement("div");
+    applyAllContainer.className = "apply-all-container";
+    applyAllContainer.style.marginTop = "15px";
+    applyAllContainer.style.display = "flex";
+    applyAllContainer.style.alignItems = "center";
+    applyAllContainer.style.gap = "10px";
+
+    const applyAllInput = document.createElement("input");
+    applyAllInput.type = "number";
+    applyAllInput.placeholder = "Mark value for all";
+    applyAllInput.className = "apply-all-input";
+    applyAllInput.step = "0.01";
+    applyAllInput.min = "0";
+    applyAllInput.style.width = "150px";
+
+    const applyAllButton = document.createElement("button");
+    applyAllButton.type = "button";
+    applyAllButton.textContent = "Apply to All";
+    applyAllButton.className = "btn btn-sm btn-outline-primary";
+
+    applyAllButton.addEventListener('click', function() {
+      const value = applyAllInput.value;
+      if (value && !isNaN(parseFloat(value))) {
+        const inputs = container.querySelectorAll('.fm-input');
+        inputs.forEach(input => {
+          input.value = parseFloat(value);
+        });
+
+        // Update the marks summary
+        if (number > 0) {
+          const totalMarks = number * parseFloat(value);
+          summary.innerHTML = `<b>Summary:</b> ${number} sub-questions × ${value} marks each = ${totalMarks} total marks`;
+        }
+
+        // Update the mark per sub question input
+        const markPerSubQInput = document.getElementById(`markPerSubQ${index}`);
+        if (markPerSubQInput) {
+          markPerSubQInput.value = value;
+        }
+      }
+    });
+
+    applyAllContainer.appendChild(applyAllInput);
+    applyAllContainer.appendChild(applyAllButton);
+
+    container.appendChild(applyAllContainer);
+
+    console.log(`Generated ${number} mark inputs for question ${index} with name ${name}, markPerSubQ: ${markPerSubQ}`);
+  }
+
+</script>
+
+<form action="<%= editing ? `/admin/subjectadd/${subId}` : '/admin/subjectadd' %>" method="post" class="subject-form" enctype="multipart/form-data">
+  <div class="ios-select-container">
+    <div class="ios-select-group">
+      <label for="subject">Subject Format</label>
+      <select name="subject" id="subject" class="ios-select">
+        <option value="" disabled selected>--Select a subject--</option>
+        <% uniqueSubjects = new Set(newsubjectList.map(item => item.newsubject)); %>
+        <% uniqueSubjects.forEach(function(subject) { %>
+          <option value="<%= subject %>" <%= editing && subjectedit.subject === subject ? 'selected' : '' %>>
+            <%= subject %>
+          </option>
+        <% }); %>
+      </select>
+      <span class="select-arrow">⌄</span>
+    </div>
+
+    <div class="ios-select-group">
+      <label for="studentclass">Class</label>
+      <select name="forClass" id="studentclass" class="ios-select">
+        <%
+          const uniqueClass = new Set(studentClassdata.map(item => item.studentClass));
+        %>
+        <% for (const uniqsub of uniqueClass) { %>
+          <option value="<%= uniqsub %>" <%= editing && subjectedit.forClass === uniqsub ? 'selected' : '' %>>
+            <%= uniqsub %>
+          </option>
+        <% } %>
+      </select>
+      <span class="select-arrow">⌄</span>
+    </div>
+  </div>
+
+<div class="ios-select-container">
+    <div class="ios-select-group">
+      <label for="questionPaper">Question Paper</label>
+      <div class="file-input-wrapper">
+        <input type="file" name="questionPaperOfClass" id="questionPaper" class="form-control"
+             accept=".pdf, .doc, .docx, .txt"
+             title="Upload Question Paper">
+        <% if (editing && subjectedit.questionPaperOfClass) { %>
+          <div class="mt-2">
+            <div class="alert alert-info py-2 mb-0">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Current:</strong> <%= subjectedit.questionPaperOfClass %>
+              <% if (subjectedit.questionPaperOfClass !== 'default.pdf') { %>
+                <a href="/file-viewer/<%= subjectedit.questionPaperOfClass %>" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                  <i class="fas fa-eye"></i> View
+                </a>
+              <% } %>
+            </div>
+            <input type="hidden" name="currentQuestionPaper" value="<%= subjectedit.questionPaperOfClass %>">
+          </div>
+        <% } else { %>
+          <small class="text-muted d-block mt-1">Supported: PDF, DOC, DOCX, TXT</small>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="ios-select-group">
+      <label>Copy Format From Class</label>
+      <div class="d-flex gap-3 align-items-start">
+        <select name="sameas" id="sameas" class="ios-select">
+          <option value="" disabled selected>--Copy format of another class--</option>
+          <% for (const uniqsub of uniqueClass) { %>
+            <option value="<%= uniqsub %>"><%= uniqsub %></option>
+          <% } %>
+        </select>
+        <span class="select-arrow">⌄</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="max">Maximum Questions</label>
+    <input type="number" id="max" name="max" required oninput="generateInput()"
+           value="<%= editing ? subjectedit.max : '' %>" 
+           placeholder="Enter Maximum Question Number"
+           class="form-control ios-input" min="1">
+  </div>
+
+  <style>
+    .file-input-wrapper {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(210, 210, 215, 0.8);
+      border-radius: 12px;
+      padding: 12px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .file-input-wrapper:hover {
+      border-color: rgba(0, 102, 204, 0.5);
+      background: rgba(255, 255, 255, 0.95);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-input-wrapper input[type="file"] {
+      border: none;
+      padding: 0;
+      margin-bottom: 0;
+    }
+
+    .ios-input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      color: #1d1d1f;
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #d2d2d7;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .ios-input:hover {
+      border-color: #0066cc;
+      background-color: rgba(255, 255, 255, 1);
+    }
+
+    .ios-input:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+    }
+
+    .alert {
+      margin: 0;
+      border-radius: 8px;
+    }
+
+    .gap-3 {
+      gap: 1rem;
+    }
+  </style>
+
+  <div id="subQuestionContainer"></div>
+
+  <button type="submit" id="subjectadd" class="addbutton">
+    <i class="fa-solid fa-<%= editing ? 'pen' : 'plus' %>"></i>
+    <%= editing ? "Update Subject" : "Add New Subject" %>
+  </button>
+</form>
+<center><a href="/"><button class="btn" style="background-color: green;color: white;"   ><i class="fa-solid fa-arrow-left" style="color: #ffffff;"></i>&ensp;Go to Data Entry</button></a></center>
+
+<script>
+// Function to fetch and autofill data from another class
+async function autofillFromClass(classNameParam) {
+  try {
+    // Make sure we have a valid class name
+    const className = classNameParam;
+    console.log("autofillFromClass called with className:", className);
+
+    if (!className) {
+      alert('Please select a valid class');
+      return;
+    }
+
+    const subjectName = document.getElementById('subject').value;
+
+    if (!subjectName) {
+      alert('Please enter a subject name first');
+      return;
+    }
+
+    console.log("Fetching data for Class:", className, "Subject:", subjectName);
+
+    // Construct the URL with the parameters
+    const url = `/admin/get_subject_data?className=${encodeURIComponent(className)}&subjectName=${encodeURIComponent(subjectName)}`;
+    console.log("Fetch URL:", url);
+
+    // Fetch subject data from the server
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error("Fetch error:", res.status, res.statusText);
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    console.log("Received data:", data);
+
+    if (!data || !data.max) {
+      alert(`No data found for ${subjectName} in Class ${className}`);
+      return;
+    }
+
+    // Update the max questions field
+    let maxInput = document.querySelector('#max');
+    maxInput.value = parseInt(data.max);
+
+    // Generate input fields based on the new max value
+    generateInput();
+
+    // Now populate the sub-question counts and marks
+    for (let i = 1; i <= data.max; i++) {
+      if (data[i] && Array.isArray(data[i]) && data[i].length > 0) {
+        // Get the count from the first element in the array
+        const subQCount = parseInt(data[i][0]);
+
+        // Find the sub-question input
+        const subQInput = document.getElementById(`subQuestion${i}`);
+        if (subQInput) {
+          subQInput.value = subQCount;
+
+          // Generate mark fields for this question
+          generateSubFullMarks(i, subQCount, i);
+
+          // Now populate the mark values
+          for (let j = 1; j <= subQCount; j++) {
+            if (data[i][j]) {
+              // Find the mark input and set its value
+              const markInputs = document.querySelectorAll(`#subFmContainer${i} input[type="number"].fm-input`);
+              if (markInputs && markInputs[j-1]) {
+                markInputs[j-1].value = data[i][j];
+              }
+            }
+          }
+        }
+      }
+    }
+
+    console.log("Autofill complete for Class", className);
+
+  } catch (err) {
+    console.error("Error occurred during autofill:", err);
+    alert(`Error getting data: ${err.message}`);
+  }
+}
+
+// Add event listener to the "Same as" button
+// This will trigger the autofill function when a class is selected
+document.getElementById('sameas').addEventListener('change', function() {
+  const selectedClass = parseInt(this.value);
+  this.style.backgroundColor = "#0d6efd"; // Change button color to indicate selection
+
+  console.log("Selected class from button:", selectedClass);
+
+  if (selectedClass) {
+    // Call the autofill function with the selected class value
+    autofillFromClass(selectedClass);
+  } else {
+    console.warn("No class selected");
+  }
+    });
+
+// Add file selection feedback for editing mode
+if (editing === 'true') {
+  const fileInput = document.getElementById('questionPaper');
+  const currentFileAlert = document.querySelector('.alert-info');
+
+  fileInput.addEventListener('change', function() {
+    if (this.files.length > 0) {
+      const fileName = this.files[0].name;
+
+      // Update the alert to show new file selection
+      if (currentFileAlert) {
+        currentFileAlert.innerHTML = `
+          <i class="fas fa-upload me-2"></i>
+          <strong>New file selected:</strong> ${fileName}
+          <br>
+          <small class="text-muted">This will replace the current question paper when you save.</small>
+        `;
+        currentFileAlert.className = 'alert alert-warning py-2';
+      }
+    } else {
+      // Reset to original state if no file selected
+      if (currentFileAlert && typeof subjectedit !== 'undefined' && subjectedit.questionPaperOfClass) {
+        currentFileAlert.innerHTML = `
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Current file:</strong> ${subjectedit.questionPaperOfClass}
+          ${subjectedit.questionPaperOfClass !== 'default.pdf' ? `<a href="/file-viewer/${subjectedit.questionPaperOfClass}" target="_blank" class="btn btn-sm btn-outline-primary ms-2"><i class="fas fa-eye"></i> View File</a>` : ''}
+          <br>
+          <small class="text-muted">Select a new file above to replace the current question paper, or leave empty to keep the existing file.</small>
+        `;
+        currentFileAlert.className = 'alert alert-info py-2';
+      }
+    }
+  });
+}
+
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+  /* Enhanced Table Styles */
+  .table-responsive {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    position: relative;
+  }
+
+  .table-responsive::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+
+  /* Ensure the table wrapper maintains position context */
+  .table-container {
+    position: relative;
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .table {
+    margin: 0;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table thead {
+    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .table th {
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .table td {
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    vertical-align: middle;
+    min-width: 150px; /* Minimum width for all cells */
+    max-width: 300px; /* Maximum width for all cells */
+    white-space: normal;
+    word-wrap: break-word;
+  }
+
+  /* Specific column widths */
+  .table td:first-child,
+  .table th:first-child {
+    width: 100px;
+    min-width: 100px;
+  }
+
+  .table td:nth-child(2),
+  .table th:nth-child(2),
+  .table td:nth-child(3),
+  .table th:nth-child(3) {
+    width: 150px;
+    min-width: 150px;
+  }
+
+  .table td:last-child,
+  .table th:last-child {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  /* Question number columns */
+  .table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:last-child),
+  .table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:last-child) {
+    min-width: 200px;
+  }
+
+  /* Style for sub-question content */
+  .table td > div {
+    margin-bottom: 4px;
+  }
+
+  .table td > div:last-child {
+    margin-bottom: 0;
+  }
+
+  .table td > div > b {
+    color: #0d6efd;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+
+  /* Hover effect on rows */
+  .table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.04);
+  }
+
+  /* Action column styles */
+  .action-column {
+    white-space: nowrap;
+    text-align: center;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #f0f7ff; /* Light sky blue background */
+  }
+
+  /* Style for action column header */
+  thead .action-column {
+    background: #2c3e50; /* Darker background for header */
+    color: white;
+  }
+
+  /* Style for action buttons container in cells */
+  .action-column.td-action {
+    background: #f0f7ff; /* Light sky blue for cells */
+    box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.1);
+    border-left: 2px solid #dee2e6;
+  }
+
+  /* Action buttons styling */
+  .action-column .btn-primary.edit-btn {
+    background: #37b3f6;
+    border: none;
+    transition: all 0.3s ease;
+  }
+
+  .action-column .btn-primary.edit-btn:hover {
+    background: #1e88e5;
+    transform: translateY(-1px);
+  }
+
+  .action-column .delete {
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.3s ease;
+  }
+
+  .action-column .delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    transform: translateY(-1px);
+  }
+
+  /* iOS Style Select Inputs */
+  .ios-select-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .ios-select-group {
+    position: relative;
+    margin-bottom: 0;
+  }
+
+  .ios-select-group label {
+    display: block;
+    font-size: 14px;
+    color: #86868b;
+    margin-bottom: 8px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .ios-select {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    color: #1d1d1f;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(210, 210, 215, 0.8);
+    border-radius: 12px;
+    appearance: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .ios-select:hover {
+    border-color: rgba(0, 102, 204, 0.5);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .ios-select:focus {
+    outline: none;
+    border-color: #0066cc;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.2),
+                0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 16px;
+    top: 40px;
+    color: #86868b;
+    pointer-events: none;
+    font-size: 18px;
+    transition: all 0.2s ease;
+  }
+
+  .ios-select:hover + .select-arrow {
+    color: #0066cc;
+    transform: translateY(-1px);
+  }
+
+  .ios-select:focus + .select-arrow {
+    color: #0066cc;
+  }
+
+  /* iOS-style select options (works in some modern browsers) */
+  .ios-select option {
+    background: rgba(255, 255, 255, 0.9);
+    color: #1d1d1f;
+    padding: 12px;
+    font-size: 16px;
+    text-shadow: none;
+    border: none;
+  }
+
+  .ios-select option:checked {
+    background: linear-gradient(0deg, #0066cc 0%, #0066cc 100%);
+    color: white;
+  }
+
+  /* Style enhancements for the new format inputs */
+  .question-heading {
+    font-size: 1.2rem;
+    padding: 8px 0;
+    margin-bottom: 15px;
+    color: #0d6efd;
+  }
+
+  .question-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e9ecef;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .sub-input,
+  .mark-per-sub-input,
+  .format-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    transition: border-color 0.15s ease-in-out;
+  }
+
+  .sub-input:focus,
+  .mark-per-sub-input:focus,
+  .format-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    outline: none;
+  }
+
+  .format-input {
+    background-color: #f0f7ff;
+    border-color: #a4cafd;
+  }
+
+  .marks-summary {
+    background-color: #e3f2fd;
+    padding: 8px 12px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    border-left: 4px solid #0d6efd;
+  }
+
+  .fm-input-container {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 5px;
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+  }
+
+  .fm-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .fm-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+  }
+
+  .fm-inputs-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .apply-all-container {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .fm-heading {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #495057;
+  }
+</style>
+
+<h2 class="subject-title">Subject <span>List</span></h2>
+
+<div class="table-container">
+  <!-- Bootstrap-styled table with responsive features -->
+  <div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered">
+      <%
+
+  // Define the order you want
+  const orderedKeys = ['subject', 'forClass', 'questionPaperOfClass','max'];
+
+  // Get all numeric or other keys that are not subject/forClass/_id/__v
+  const otherKeys = [...new Set(subjectsformat.flatMap(Object.keys))]
+    .filter(key => !orderedKeys.includes(key) && key !== "__v" && key !== "_id")
+    .sort((a, b) => parseInt(a) - parseInt(b)); // Sort numeric keys
+
+  const allKeys = [...orderedKeys, ...otherKeys];
+
+
+
+      %>
+
+      <thead class="table-dark">
+        <tr>
+          <th scope="col">Question Paper</th>
+          <% allKeys.forEach((key) => { %>
+            <% if (!isNaN(parseInt(key))) { %>
+              <th scope="col">Q.No. <%= key %></th>
+            <% } else { %>
+              <th scope="col"><%= key.charAt(0).toUpperCase() + key.slice(1) %></th>
+            <% } %>
+          <% }); %>
+          
+          <th scope="col" class="action-column">Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <% 
+          // Sort by subject (alphabetically), then by forClass (numerically)
+          const sortedSubjects = subjectsformat.slice().sort((a, b) => {
+            if (a.subject < b.subject) return -1;
+            if (a.subject > b.subject) return 1;
+            return (parseInt(a.forClass) || 0) - (parseInt(b.forClass) || 0);
+          });
+          sortedSubjects.forEach((sub) => { %>
+          <tr>
+              <td>
+              <% if (sub.questionPaperOfClass && sub.questionPaperOfClass !== 'default.pdf') { %>
+                <a href="/file-viewer/<%= sub.questionPaperOfClass %>" target="_blank" class="btn btn-outline-info btn-sm">
+                  <i class="fas fa-eye"></i> View
+                </a>
+              <% } else { %>
+                <span class="text-muted">No file</span>
+              <% } %>
+            </td>
+
+            <% allKeys.forEach((key) => { %>
+              <% if (!isNaN(parseInt(key)) && Array.isArray(sub[key])) { %>
+
+
+
+                <td>
+                  <% if (typeof sub[key][0] !== 'undefined' && sub[key][0] !== null && sub[key][0] !== '') { %>
+                    <div><b>Total sub question = <%= sub[key][0] %></b></div>
+                  <% } else { %>
+                    <div>&nbsp;</div>
+                  <% } %>
+                  <% for (let i = 1; i < sub[key].length; i++) { %>
+                    <div>
+                      <% if (typeof sub[key][i] !== 'undefined' && sub[key][i] !== null && sub[key][i] !== '') { %>
+                        Q<%= key %><%= String.fromCharCode(96 + i) %>: <%= sub[key][i] %>
+                      <% } else { %>
+                        &nbsp;
+                      <% } %>
+                    </div>
+                  <% } %>
+                </td>
+              <% } else { %>
+                <td><%= (typeof sub[key] !== 'undefined' && sub[key] !== null && sub[key] !== '') ? sub[key] : '' %></td>
+              <% } %>
+            <% }); %>
+          
+            <td class="action-column">
+              <a href="/admin/editsub/<%= sub._id %>?editing=true" class="me-2">
+                <button class="btn btn-primary btn-sm edit-btn">Edit</button>
+              </a>
+             
+              <a
+                href="/delete/subject/<%= sub._id %>/<%= sub.subject %>"
+                onclick="return confirm('Are you sure you want to delete <%= sub.subject %> subject')"
+                class="delete">
+                <i class="fa-solid fa-trash" style="color: #ff0000;"></i>
+              </a>
+            </td>
+
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<hr><hr><br>
+
+
+
+<script src="https://kit.fontawesome.com/368eb67b69.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/bootstrap-table.js"></script>
+</body>
