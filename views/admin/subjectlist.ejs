@@ -476,10 +476,12 @@
     <div class="ios-select-group">
       <label for="studentclass">Class</label>
       <select name="forClass" id="studentclass" class="ios-select">
+        <option value="" selected disabled>Choose For Class</option>
         <%
           const uniqueClass = new Set(studentClassdata.map(item => item.studentClass));
         %>
         <% for (const uniqsub of uniqueClass) { %>
+          
           <option value="<%= uniqsub %>" <%= editing && subjectedit.forClass === uniqsub ? 'selected' : '' %>>
             <%= uniqsub %>
           </option>
@@ -1221,6 +1223,32 @@ if (editing === 'true') {
 
 <hr><hr><br>
 
+
+<script>
+  const subjectInput = document.getElementById('subject');
+  const classInput = document.getElementById('studentclass');
+
+  async function checkSubjectExists() {
+    const subject = subjectInput.value.trim();
+    const studentClass = classInput.value;
+
+    if (subject && studentClass) {
+      try {
+        const res = await fetch(`/checksubjectexist?subjectinput=${encodeURIComponent(subject)}&forClass=${encodeURIComponent(studentClass)}`);
+        const data = await res.json();
+
+        if (data.exists) {
+          alert(`Subject ${subject} for class ${studentClass} already exists!`);
+        }
+      } catch (err) {
+        console.error('Error checking subject:', err);
+      }
+    }
+  }
+
+  subjectInput.addEventListener('change', checkSubjectExists);
+  classInput.addEventListener('change', checkSubjectExists);
+</script>
 
 
 <script src="https://kit.fontawesome.com/368eb67b69.js" crossorigin="anonymous"></script>

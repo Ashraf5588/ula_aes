@@ -41,6 +41,8 @@ student.post('/admin/login',admincontrol.adminloginpost)
 student.get('/',verifytoken,authorized,controller.homePage)
 
 student.get('/admin/term/:terminal',verifytoken,authorized,isAdmin,admincontrol.admin)
+student.get('/report',verifytoken,authorized,isAdmin,admincontrol.report)
+student.get('/reportprint',verifytoken,authorized,isAdmin,admincontrol.reportprint)
 
 student.get('/admin/marksheetsetup',verifytoken,authorized,isAdmin,admincontrol.marksheetSetupForm)
 student.post('/admin/marksheetsetup',verifytoken,authorized,isAdmin,admincontrol.marksheetSetupSave)
@@ -117,7 +119,7 @@ student.get('/debug/:subjectinput/:studentClass/:section/:terminal',verifytoken,
 student.get('/studentData/:subjectinput/:studentClass/:section/:qno/:status/:terminal',verifytoken,authorized,controller.studentData)
 student.get('/totalStudent/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.totalStudent)
 student.get('/checkroll/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.checkroll)
-student.get('/subjectlistcheck/:subjectinput/:studentClass',verifytoken,authorized,admincontrol.subjectlistcheck)
+student.get('/checksubjectexist',verifytoken,authorized,admincontrol.subjectlistcheck)
 // Debug route to check available subjects
 student.get('/debug/subjects', verifytoken,authorized,async (req, res) => {
   try {
