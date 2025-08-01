@@ -1238,7 +1238,10 @@ if (editing === 'true') {
         const data = await res.json();
 
         if (data.exists) {
-          alert(`Subject ${subject} for class ${studentClass} already exists!`);
+          alert(`Subject ${subject} for class ${studentClass} already exists! Please delete the existing subject before adding a new one.`);
+          subjectInput.value = '';
+          classInput.value = '';
+          return;
         }
       } catch (err) {
         console.error('Error checking subject:', err);

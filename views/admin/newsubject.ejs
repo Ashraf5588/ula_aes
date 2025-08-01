@@ -15,6 +15,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
   <style>
+    body
+    {
+      background-color: white !important;
+    }
     :root {
       --primary: #37b3f6;
       --primary-hover: #1e88e5;
@@ -46,14 +50,14 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 50%, var(--secondary) 100%);
+      background: white !important;
       min-height: 100vh;
       color: var(--dark);
       line-height: 1.6;
     }
 
     .main-wrapper {
-      background: var(--light-bg);
+      background: white;
       min-height: 100vh;
       padding: 0;
     }
@@ -253,8 +257,7 @@
     }
 
     .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--shadow);
+      background: var(--primary-hover);
       color: var(--white);
     }
 
@@ -267,7 +270,6 @@
     .btn-secondary:hover {
       background: var(--gray-200);
       color: var(--gray-700);
-      transform: translateY(-1px);
     }
 
     /* Table Section */
@@ -351,13 +353,6 @@
       font-size: 0.875rem;
       font-weight: 500;
       display: inline-block;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.2s ease;
-    }
-    
-    .subject-badge:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--shadow);
     }
 
     /* Action Buttons */
@@ -875,27 +870,14 @@ document.getElementById("subject").addEventListener("input", function() {
     `;
     document.head.appendChild(style);
 
-    // Enhanced button interactions
+    // Remove button animations
     document.querySelectorAll('.action-btn').forEach(btn => {
-      btn.addEventListener('mouseenter', function() {
-        this.style.transform = 'translateY(-2px)';
-        this.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-      });
-      
-      btn.addEventListener('mouseleave', function() {
-        this.style.transform = 'translateY(0)';
-        this.style.boxShadow = '';
-      });
+      btn.style.transition = 'background-color 0.2s ease';
     });
 
-    // Table row click animation
+    // Remove table row animations
     document.querySelectorAll('.table tbody tr').forEach(row => {
-      row.addEventListener('click', function() {
-        this.style.transform = 'scale(1.01)';
-        setTimeout(() => {
-          this.style.transform = '';
-        }, 150);
-      });
+      row.style.transition = 'none';
     });
   </script>
 </body>
