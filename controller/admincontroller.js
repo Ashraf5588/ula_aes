@@ -529,8 +529,8 @@ accessibleClasses = studentClassdata.filter(classItem =>
     ...sidenavData
   });
 };
-exports.addSubject = async (req, res, next) => {  try {
-
+exports.addSubject = async (req, res, next) => {  
+  try {
     const { subId} = req.params;
     const className = req.query.className;
     
@@ -555,6 +555,27 @@ exports.addSubject = async (req, res, next) => {  try {
       forClass: formData.forClass,
       max: formData.max
     };
+    
+    // Add question field data to processed data
+    console.log("Form Data Keys:", Object.keys(formData));
+    console.log("Form Data:", formData);
+    
+    Object.keys(formData).forEach(key => {
+      // Check if it's one of our special question fields (starts with 'q')
+      if (key.startsWith('q')) {
+        // Convert string values to numbers where appropriate
+        const value = !isNaN(parseFloat(formData[key])) ? 
+          parseFloat(formData[key]) : formData[key];
+        
+        // MongoDB treats fields with dots as nested objects, so we need to replace dots
+        // with a different character like underscore for storage
+        const processedKey = key.replace(/\./g, '_');
+        
+        // Add to processedData with the modified key name if it contains dots
+        processedData[processedKey] = value;
+        console.log(`Question field ${key} → ${processedKey} = ${value}`);
+      }
+    });
 
 
 
@@ -655,30 +676,51 @@ exports.addSubject = async (req, res, next) => {  try {
 
   // We don't need to delete or filter anything since we're building a new object
 
-  // Process questions with their marks
+  // We don't need to delete or filter anything since we're building a new object
+
+  // Process all form fields, preserving the field names for database
+  console.log("Processing form data keys...");
+  
+  // Get all the keys that match our new naming pattern (q1a, q1a.i, etc.)
+  Object.keys(formData).forEach(key => {
+    // Check if it's one of our special question fields (starts with 'q')
+    if (key.startsWith('q')) {
+      // Convert string values to numbers where appropriate
+      const value = !isNaN(parseFloat(formData[key])) ? 
+        parseFloat(formData[key]) : formData[key];
+      
+      // Add directly to processedData to preserve the field name (q1a, q1b.i, etc.)
+      processedData[key] = value;
+      console.log(`Question field ${key} = ${value}`);
+    }
+  });
+  
+  // Process questions with their marks - For backwards compatibility
   const numericKeys = Object.keys(formData)
     .filter(key => /^\d+$/.test(key))
-      .map(key => parseInt(key))
-      .sort((a, b) => a - b);
+    .map(key => parseInt(key))
+    .sort((a, b) => a - b);
     
-    console.log("Question numbers found:", numericKeys);
+  console.log("Question numbers found:", numericKeys);
 
-    // Process all questions that have mark inputs
-    for (const qNum of numericKeys) {
-      // Get the marks array which now includes the count as first element
-      if (Array.isArray(formData[qNum])) {
-        // Convert all values to numbers
-        processedData[qNum] = formData[qNum].map(val => 
-          !isNaN(parseFloat(val)) ? parseFloat(val) : val
-        );
-        console.log(`Question ${qNum} values (array):`, processedData[qNum]);
-      } else {
-        // If it's a single value, convert to a one-element array
-        const value = !isNaN(parseFloat(formData[qNum])) ? 
-          parseFloat(formData[qNum]) : formData[qNum];        processedData[qNum] = [value];
-        console.log(`Question ${qNum} value (single):`, processedData[qNum]);
-      }
+  // Process all questions that have mark inputs - For backwards compatibility
+  for (const qNum of numericKeys) {
+    // Get the marks array which now includes the count as first element
+    if (Array.isArray(formData[qNum])) {
+      // Convert all values to numbers
+      processedData[qNum] = formData[qNum].map(val => 
+        !isNaN(parseFloat(val)) ? parseFloat(val) : val
+      );
+      console.log(`Question ${qNum} values (array):`, processedData[qNum]);
+    } else {
+      // If it's a single value, convert to a one-element array
+      const value = !isNaN(parseFloat(formData[qNum])) ? 
+        parseFloat(formData[qNum]) : formData[qNum];        
+      processedData[qNum] = [value];
+      console.log(`Question ${qNum} value (single):`, processedData[qNum]);
     }
+  }
+    
 
     console.log("=== FINAL PROCESSED DATA ===");
     console.log("Complete processedData object:", JSON.stringify(processedData, null, 2));
@@ -741,6 +783,9 @@ exports.addSubject = async (req, res, next) => {  try {
       console.log("Old questionPaperOfClass:", oldSubject.questionPaperOfClass);
       console.log("New questionPaperOfClass:", processedData.questionPaperOfClass);
       
+      console.log("Before database update - FULL PROCESSED DATA:", JSON.stringify(processedData, null, 2));
+      console.log("Question field keys:", Object.keys(processedData).filter(k => k.startsWith('q')));
+      
       const updatedSubject = await subject.findByIdAndUpdate(
         subId,
         processedData,
@@ -774,11 +819,16 @@ exports.addSubject = async (req, res, next) => {  try {
       console.log("Create mode - adding new subject with data:", processedData);
 
      
-     await subject.create(processedData);
-      res.redirect("/admin/subject");
+     console.log("Before database create - FULL PROCESSED DATA:", JSON.stringify(processedData, null, 2));
+     console.log("Question field keys:", Object.keys(processedData).filter(k => k.startsWith('q')));
+     
+     const createdSubject = await subject.create(processedData);
+     console.log("After save - Data saved to DB:", createdSubject);
+     res.redirect("/admin/subject");
     }
   } catch (err) {
-   console.log(err)
+    console.log(err);
+    res.status(500).send("Error adding subject: " + err.message);
   }
 };
 

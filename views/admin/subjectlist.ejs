@@ -8,6 +8,93 @@
   <link rel="stylesheet" href="/nav.css">
   <link rel="stylesheet" href="/subject-list.css">
   <link rel="stylesheet" href="/bootstrap-table.css">
+  
+  <style>
+    /* Card styling */
+    .card {
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .card-header {
+      font-weight: bold;
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    /* Sub-parts styling */
+    .sub-parts-container {
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .generated-subparts {
+      position: relative;
+    }
+    .subparts-wrapper {
+      border-radius: 5px;
+      scrollbar-width: thin;
+      scrollbar-color: #0d6efd #f8f9fa;
+    }
+    .subparts-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+    .subparts-wrapper::-webkit-scrollbar-track {
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+    .subparts-wrapper::-webkit-scrollbar-thumb {
+      background-color: #0d6efd;
+      border-radius: 5px;
+    }
+    
+    /* Question container styling */
+    .question-container {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px dashed #dee2e6;
+    }
+    .question-container:last-child {
+      border-bottom: none;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 767px) {
+      .card {
+        margin-bottom: 15px;
+      }
+      .question-heading {
+        font-size: 1.2rem;
+      }
+      /* Tighten up spacing on mobile */
+      .g-3 {
+        --bs-gutter-x: 0.75rem;
+        --bs-gutter-y: 0.75rem;
+      }
+      /* Make cards full width on small screens */
+      .row-cols-sm-2 > * {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+    }
+    
+    @media (max-width: 575px) {
+      /* Smaller text on very small screens */
+      .card-body {
+        padding: 0.75rem;
+      }
+      .form-control, .input-group-text {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+      }
+      /* Stack sub-parts on very small screens */
+      .subparts-wrapper {
+        max-height: 200px !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <%- include('../partials/nav',{currentPage:'admin'}) %>
@@ -26,25 +113,361 @@
   const subjectedit = <%- editing ? JSON.stringify(subjectedit || {}) : '{}' %>;
 
   document.addEventListener("DOMContentLoaded", () => {
-    if (editing === 'true') {
-      generateInput();
-
-      // Add form validation on submit
-      const form = document.querySelector('.subject-form');
-      form.addEventListener('submit', validateForm);
-    } else {
-      // Make form field generation happen for new subjects too
-      const maxField = document.getElementById("max");
-      if (maxField && maxField.value) {
-        generateInput();
+    // Add form validation on submit
+    const form = document.querySelector('.subject-form');
+    form.addEventListener('submit', validateForm);
+    
+    // Add event listener for max questions field
+    const maxField = document.getElementById("max");
+    if (maxField) {
+      maxField.addEventListener('input', function() {
+        console.log("Max field changed:", this.value);
+        const value = parseInt(this.value);
+        if (value > 0) {
+          generateDynamicForm(value);
+        } else {
+          document.getElementById('subQuestionContainer').innerHTML = '<div style="color: red; margin-top: 10px;">Please enter a valid maximum question number</div>';
+        }
+      });
+      
+      // Initial generation if in edit mode or value exists
+      if (editing === 'true' || maxField.value) {
+        generateDynamicForm(parseInt(maxField.value));
       }
-
-      // Add form validation on submit
-      const form = document.querySelector('.subject-form');
-      form.addEventListener('submit', validateForm);
     }
   });
     // Form validation function
+  // Function to generate sub-questions with their own sub-parts option
+  function generateSubQuestions(questionNum, count, marksEach) {
+    const container = document.getElementById(`subQuestions_${questionNum}_container`);
+    container.innerHTML = '';
+    
+    if (isNaN(count) || count <= 0) {
+      container.innerHTML = '<div class="alert alert-danger">Please enter a valid count</div>';
+      return;
+    }
+    
+    // Create adaptive grid for sub-questions based on count
+    const grid = document.createElement('div');
+    let gridClass = 'row g-3';
+    
+    if (count <= 2) {
+      gridClass += ' row-cols-1';  // Single column for 1-2 items
+    } else if (count <= 4) {
+      gridClass += ' row-cols-1 row-cols-md-2';  // 1 column on mobile, 2 on medium
+    } else {
+      gridClass += ' row-cols-1 row-cols-sm-2 row-cols-lg-3';  // 1 on mobile, 2-3 on larger screens
+    }
+    
+    grid.className = gridClass;
+    
+    for (let i = 1; i <= count; i++) {
+      const letter = String.fromCharCode(96 + i); // a, b, c, etc.
+      
+      // Create card for each sub-question
+      const col = document.createElement('div');
+      col.className = 'col';
+      
+      const card = document.createElement('div');
+      card.className = 'card h-100';
+      
+      const cardHeader = document.createElement('div');
+      cardHeader.className = 'card-header bg-light';
+      cardHeader.innerHTML = `<strong>Q${questionNum}${letter}</strong>`;
+      
+      const cardBody = document.createElement('div');
+      cardBody.className = 'card-body';
+      
+      // Main marks input group
+      const marksGroup = document.createElement('div');
+      marksGroup.className = 'mb-3';
+      
+      const marksLabel = document.createElement('label');
+      marksLabel.className = 'form-label';
+      marksLabel.textContent = `Marks:`;
+      
+      const marksInput = document.createElement('input');
+      marksInput.type = 'number';
+      marksInput.className = 'form-control';
+      marksInput.name = `q${questionNum}${letter}`; // Changed to format q1a, q1b, etc.
+      marksInput.value = marksEach;
+      marksInput.required = true;
+      marksInput.min = '0';
+      marksInput.step = '0.5';
+      
+      marksGroup.appendChild(marksLabel);
+      marksGroup.appendChild(marksInput);
+      
+      // Has sub-parts checkbox
+      const checkGroup = document.createElement('div');
+      checkGroup.className = 'form-check mb-3';
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'form-check-input';
+      checkbox.id = `hasSubParts_${questionNum}_${letter}`;
+      checkbox.name = `q${questionNum}${letter}_has_subparts`; // Changed to format q1a_has_subparts
+      
+      const checkLabel = document.createElement('label');
+      checkLabel.className = 'form-check-label';
+      checkLabel.htmlFor = `hasSubParts_${questionNum}_${letter}`;
+      checkLabel.textContent = 'Has sub-parts';
+      
+      checkGroup.appendChild(checkbox);
+      checkGroup.appendChild(checkLabel);
+      
+      // Create sub-parts container (initially hidden) - improved for responsiveness
+      const subPartsContainer = document.createElement('div');
+      subPartsContainer.className = 'sub-parts-container mt-3 p-3 rounded';
+      subPartsContainer.id = `subparts_${questionNum}${letter}_container`;
+      subPartsContainer.style.display = 'none';
+      subPartsContainer.style.borderLeft = '3px solid #0d6efd';
+      subPartsContainer.style.backgroundColor = 'rgba(13, 110, 253, 0.05)';
+      
+      // Title for the sub-parts section
+      const subPartsTitle = document.createElement('div');
+      subPartsTitle.className = 'fw-bold mb-3 text-primary';
+      subPartsTitle.textContent = `Sub-parts for Q${questionNum}${letter}`;
+      subPartsContainer.appendChild(subPartsTitle);
+      
+      // Create a row for inputs to be responsive
+      const inputRow = document.createElement('div');
+      inputRow.className = 'row g-3 mb-3';
+      
+      // Sub-parts count input - in left column
+      const subPartsCountCol = document.createElement('div');
+      subPartsCountCol.className = 'col-12 col-md-6';
+      
+      const subPartsCountGroup = document.createElement('div');
+      subPartsCountGroup.className = 'form-group';
+      
+      const subPartsCountLabel = document.createElement('label');
+      subPartsCountLabel.className = 'form-label';
+      subPartsCountLabel.htmlFor = `subparts_count_${questionNum}_${letter}`;
+      subPartsCountLabel.textContent = 'Number of sub-parts:';
+      
+      const subPartsCountInput = document.createElement('input');
+      subPartsCountInput.type = 'number';
+      subPartsCountInput.className = 'form-control';
+      subPartsCountInput.id = `subparts_count_${questionNum}_${letter}`;
+      subPartsCountInput.name = `q${questionNum}${letter}_subparts_count`; // Changed to format q1a_subparts_count
+      subPartsCountInput.min = '1';
+      subPartsCountInput.placeholder = 'Enter count';
+      
+      subPartsCountGroup.appendChild(subPartsCountLabel);
+      subPartsCountGroup.appendChild(subPartsCountInput);
+      subPartsCountCol.appendChild(subPartsCountGroup);
+      
+      // Marks per sub-part - in right column
+      const subPartsMarksCol = document.createElement('div');
+      subPartsMarksCol.className = 'col-12 col-md-6';
+      
+      const subPartsMarksGroup = document.createElement('div');
+      subPartsMarksGroup.className = 'form-group';
+      
+      const subPartsMarksLabel = document.createElement('label');
+      subPartsMarksLabel.className = 'form-label';
+      subPartsMarksLabel.htmlFor = `marks_per_subpart_${questionNum}_${letter}`;
+      subPartsMarksLabel.textContent = 'Marks per sub-part:';
+      
+      const subPartsMarksInput = document.createElement('input');
+      subPartsMarksInput.type = 'number';
+      subPartsMarksInput.className = 'form-control';
+      subPartsMarksInput.id = `marks_per_subpart_${questionNum}_${letter}`;
+      subPartsMarksInput.name = `q${questionNum}${letter}_marks_per_subpart`; // Changed to format q1a_marks_per_subpart
+      subPartsMarksInput.min = '0';
+      subPartsMarksInput.step = '0.5';
+      subPartsMarksInput.placeholder = 'Enter marks';
+      
+      subPartsMarksGroup.appendChild(subPartsMarksLabel);
+      subPartsMarksGroup.appendChild(subPartsMarksInput);
+      subPartsMarksCol.appendChild(subPartsMarksGroup);
+      
+      // Add columns to the row
+      inputRow.appendChild(subPartsCountCol);
+      inputRow.appendChild(subPartsMarksCol);
+      
+      // Container for generated sub-parts
+      const generatedSubPartsContainer = document.createElement('div');
+      generatedSubPartsContainer.id = `generated_subparts_${questionNum}${letter}`;
+      generatedSubPartsContainer.className = 'generated-subparts mt-3';
+      
+      // Assemble the container
+      subPartsContainer.appendChild(inputRow);
+      subPartsContainer.appendChild(generatedSubPartsContainer);
+      
+      // Toggle sub-parts visibility
+      checkbox.addEventListener('change', function() {
+        subPartsContainer.style.display = this.checked ? 'block' : 'none';
+        marksInput.disabled = this.checked;
+        
+        if (!this.checked) {
+          marksInput.value = marksEach;
+          subPartsCountInput.value = '';
+          subPartsMarksInput.value = '';
+          generatedSubPartsContainer.innerHTML = '';
+        }
+      });
+      
+      // Generate sub-parts when count changes
+      subPartsCountInput.addEventListener('change', function() {
+        const count = parseInt(this.value);
+        const marksPerSubPart = subPartsMarksInput.value || 0;
+        generateSubParts(questionNum, letter, count, marksPerSubPart);
+      });
+      
+      // Update sub-parts when marks change
+      subPartsMarksInput.addEventListener('change', function() {
+        const count = parseInt(subPartsCountInput.value);
+        if (count > 0) {
+          generateSubParts(questionNum, letter, count, this.value);
+        }
+      });
+      
+      // Assemble the card
+      cardBody.appendChild(marksGroup);
+      cardBody.appendChild(checkGroup);
+      cardBody.appendChild(subPartsContainer);
+      
+      card.appendChild(cardHeader);
+      card.appendChild(cardBody);
+      col.appendChild(card);
+      grid.appendChild(col);
+    }
+    
+    container.appendChild(grid);
+  }
+  
+  // Function to generate sub-parts for a sub-question
+  function generateSubParts(questionNum, letter, count, marksEach) {
+    // Helper function to convert numbers to Roman numerals
+    const toRoman = (num) => {
+      const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x', 'xi', 'xii', 'xiii', 'xiv', 'xv', 'xvi', 'xvii', 'xviii', 'xix', 'xx'];
+      return romanNumerals[num - 1] || num; // Fallback to number if beyond 20
+    };
+    
+    const container = document.getElementById(`generated_subparts_${questionNum}${letter}`);
+    container.innerHTML = '';
+    
+    if (isNaN(count) || count <= 0) {
+      container.innerHTML = '<div class="alert alert-danger mt-2">Please enter a valid count</div>';
+      return;
+    }
+    
+    // Create a summary
+    const summary = document.createElement('div');
+    summary.className = 'subparts-summary mb-3 p-2 bg-light rounded shadow-sm';
+    
+    if (marksEach && !isNaN(parseFloat(marksEach))) {
+      const totalMarks = count * parseFloat(marksEach);
+      summary.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div><strong>Summary:</strong> ${count} sub-parts (i-${toRoman(count)})</div>
+          <div class="text-primary">${marksEach} marks × ${count} = <strong>${totalMarks}</strong> total marks</div>
+        </div>`;
+    } else {
+      summary.innerHTML = `<div class="text-center"><strong>Summary:</strong> ${count} sub-parts (i-${toRoman(count)})</div>`;
+    }
+    
+    container.appendChild(summary);
+    
+    // Create grid for sub-parts with responsive layout
+    const grid = document.createElement('div');
+    grid.className = 'row g-2';
+    
+    // Determine the appropriate column classes based on count for optimal layout on all devices
+    let columnClass;
+    if (count <= 3) {
+      columnClass = 'col-6 col-md-4';  // 2 per row on mobile, 3 per row on larger screens
+    } else if (count <= 6) {
+      columnClass = 'col-4 col-sm-3 col-md-2';  // 3 per row on mobile, 4-6 per row on larger screens
+    } else if (count <= 12) {
+      columnClass = 'col-3 col-sm-2';  // 4 per row on mobile, 6 per row on larger screens
+    } else {
+      columnClass = 'col-2';  // 6 per row on all screens for many items
+    }
+    
+    // Create a subparts wrapper with a scrollable container for many items
+    const subpartsWrapper = document.createElement('div');
+    subpartsWrapper.className = 'subparts-wrapper py-2';
+    if (count > 12) {
+      subpartsWrapper.style.maxHeight = '250px';
+      subpartsWrapper.style.overflowY = 'auto';
+      subpartsWrapper.style.paddingRight = '5px'; // Space for scrollbar
+    }
+    
+    for (let i = 1; i <= count; i++) {
+      const subPartDiv = document.createElement('div');
+      subPartDiv.className = columnClass + ' mb-2';
+      
+      // Create a card-like container for each sub-part
+      const subPartCard = document.createElement('div');
+      subPartCard.className = 'border rounded h-100 p-2 shadow-sm';
+      subPartCard.style.backgroundColor = '#ffffff';
+      
+      // Part number label using Roman numerals (i, ii, iii, etc.)
+      const partLabel = document.createElement('div');
+      partLabel.className = 'text-center small mb-2 fw-bold roman-numeral';
+      partLabel.style.color = '#0d6efd';
+      partLabel.textContent = toRoman(i);
+      
+      const inputGroup = document.createElement('div');
+      inputGroup.className = 'input-group input-group-sm';
+      inputGroup.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+      
+      const prefix = document.createElement('span');
+      prefix.className = 'input-group-text';
+      // Create a structure that separates the roman numeral with different styling
+      prefix.innerHTML = `Q${questionNum}${letter}.<span class="roman-numeral">${toRoman(i)}</span>`;
+      
+      const marksInput = document.createElement('input');
+      marksInput.type = 'number';
+      marksInput.className = 'form-control text-center';
+      marksInput.name = `q${questionNum}${letter}.${toRoman(i)}`; // Changed to format q1a.i, q1b.ii, etc.
+      marksInput.placeholder = 'Marks';
+      marksInput.value = marksEach || '';
+      marksInput.min = '0';
+      marksInput.step = '0.5';
+      marksInput.required = true;
+      
+      // Assemble the input group
+      inputGroup.appendChild(prefix);
+      inputGroup.appendChild(marksInput);
+      
+      // Add a label above the input group for clarity
+      const marksLabel = document.createElement('div');
+      marksLabel.className = 'text-center small mb-1';
+      marksLabel.textContent = 'Marks:';
+      
+      // Assemble the card
+      subPartCard.appendChild(partLabel);
+      subPartCard.appendChild(marksLabel);
+      subPartCard.appendChild(inputGroup);
+      
+      // Add the card to the grid item
+      subPartDiv.appendChild(subPartCard);
+      
+      // Add the grid item to the grid
+      grid.appendChild(subPartDiv);
+    }
+    
+    // Add grid to the scrollable wrapper if needed, otherwise directly to container
+    if (count > 12) {
+      subpartsWrapper.appendChild(grid);
+      container.appendChild(subpartsWrapper);
+    } else {
+      container.appendChild(grid);
+    }
+    
+    // Add a note for large numbers of sub-parts
+    if (count > 20) {
+      const note = document.createElement('div');
+      note.className = 'small text-muted mt-2 fst-italic';
+      note.textContent = 'Scroll to see all sub-parts';
+      container.appendChild(note);
+    }
+  }
+
   function validateForm(event) {
     const subjectField = document.getElementById('subject');
     const maxField = document.getElementById('max');
@@ -72,24 +495,50 @@
         return false;
       }
 
-      // Check all marks inputs for this question - now they all have the same name
-      const subQCount = parseInt(subQInput.value);
-      const markInputs = document.querySelectorAll(`#subFmContainer${i} input[type="number"].fm-input`);
-
-      // Verify we have the correct number of inputs
-      if (markInputs.length !== subQCount) {
-        console.warn(`Expected ${subQCount} mark inputs for Q${i}, found ${markInputs.length}`);
+      // Check marks per sub-question
+      const markInput = document.getElementById(`markPerSubQ${i}`);
+      if (!markInput || !markInput.value || parseFloat(markInput.value) < 0) {
+        alert(`Please enter a valid mark value for question ${i}`);
+        markInput.focus();
+        event.preventDefault();
+        return false;
       }
-
-      // Check each mark input
-      for (let j = 0; j < markInputs.length; j++) {
-        const markInput = markInputs[j];
-        if (!markInput.value || isNaN(parseFloat(markInput.value)) || parseFloat(markInput.value) < 0) {
-          const subQ = j + 1; // Add 1 because j is 0-based
-          alert(`Please enter a valid mark value for Q${i}.${String.fromCharCode(96 + subQ)}`);
-          markInput.focus();
-          event.preventDefault();
-          return false;
+      
+      // Get sub-question count
+      const subQCount = parseInt(subQInput.value);
+      
+      // Check each sub-question
+      for (let j = 1; j <= subQCount; j++) {
+        const letter = String.fromCharCode(96 + j); // a, b, c, etc.
+        const checkbox = document.getElementById(`hasSubParts_${i}_${letter}`);
+        
+        if (checkbox && checkbox.checked) {
+          // If this sub-question has sub-parts, validate them
+          const subPartsCountInput = document.querySelector(`input[name="q${i}${letter}_subparts_count"]`);
+          const subPartsMarksInput = document.querySelector(`input[name="q${i}${letter}_marks_per_subpart"]`);
+          
+          if (!subPartsCountInput || !subPartsCountInput.value || parseInt(subPartsCountInput.value) <= 0) {
+            alert(`Please enter a valid number of sub-parts for question ${i}${letter}`);
+            subPartsCountInput.focus();
+            event.preventDefault();
+            return false;
+          }
+          
+          if (!subPartsMarksInput || !subPartsMarksInput.value || parseFloat(subPartsMarksInput.value) < 0) {
+            alert(`Please enter valid marks per sub-part for question ${i}${letter}`);
+            subPartsMarksInput.focus();
+            event.preventDefault();
+            return false;
+          }
+        } else {
+          // If no sub-parts, validate the marks for the sub-question
+          const marksInput = document.querySelector(`input[name="q${i}${letter}"]`);
+          if (!marksInput || !marksInput.value || parseFloat(marksInput.value) < 0) {
+            alert(`Please enter valid marks for question ${i}${letter}`);
+            marksInput.focus();
+            event.preventDefault();
+            return false;
+          }
         }
       }
     }
@@ -111,12 +560,11 @@
 
     return true;
   }
-  function generateInput() {
-    const number = parseInt(document.getElementById("max").value);
+  function generateDynamicForm(number) {
     const subContainer = document.getElementById("subQuestionContainer");
     subContainer.innerHTML = "";
 
-    if (number <= 0) {
+    if (isNaN(number) || number <= 0) {
       subContainer.innerHTML = '<div style="color: red; margin-top: 10px;">Please enter a valid maximum question number</div>';
       return;
     }
@@ -124,7 +572,7 @@
     console.log("Generating input fields for", number, "questions");
     console.log("Edit mode:", editing);
     if (editing === 'true') {
-      console.log("Subject edit data:");
+      console.log("Subject edit data:", subjectedit);
     } else {
       console.log("Not in edit mode, generating new fields");
     }
@@ -133,6 +581,7 @@
       // Create question container for better organization
       const questionContainer = document.createElement("div");
       questionContainer.className = "question-container";
+      questionContainer.id = `question_${i}_container`;
 
       // Question number heading for better clarity
       const qHeading = document.createElement("h4");
@@ -145,314 +594,112 @@
       qHeading.style.paddingBottom = "5px";
       questionContainer.appendChild(qHeading);
 
-      // Create a row for the two inputs
+      // Create a responsive row for the main inputs using Bootstrap grid
       const inputRow = document.createElement("div");
-      inputRow.className = "input-row";
-      inputRow.style.display = "flex";
-      inputRow.style.gap = "10px";
-      inputRow.style.alignItems = "flex-start";
-      inputRow.style.marginBottom = "15px";
+      inputRow.className = "row g-3 mb-3";
 
       // First column - sub-question count
       const countColumn = document.createElement("div");
-      countColumn.style.flex = "1";
+      countColumn.className = "col-12 col-sm-6";
+
+      const countFormGroup = document.createElement("div");
+      countFormGroup.className = "form-group";
 
       const countLabel = document.createElement("label");
-      countLabel.textContent = `Sub Questions in Q.No ${i}:`;
-      countLabel.className = "question-label";
-      countLabel.style.display = "block";
-      countLabel.style.marginBottom = "5px";
-      countColumn.appendChild(countLabel);
+      countLabel.textContent = `Total Sub-Questions in Q${i}:`;
+      countLabel.className = "form-label";
+      countLabel.setAttribute("for", `subQuestion${i}`);
+      countFormGroup.appendChild(countLabel);
 
       const input = document.createElement("input");
       input.type = "number";
-      input.name = `subq_count${i}`;
+      input.name = `q${i}_subcount`; // Changed to format q1_subcount
       input.id = `subQuestion${i}`;
       input.required = true;
       input.placeholder = `Number of sub-questions`;
-      input.className = "sub-input";
+      input.className = "form-control sub-input";
       input.min = "1";
       input.dataset.questionNumber = i;
-      input.style.width = "100%";
-      countColumn.appendChild(input);
+      countFormGroup.appendChild(input);
+      
+      countColumn.appendChild(countFormGroup);
 
       // Second column - mark per sub-question
       const markColumn = document.createElement("div");
-      markColumn.style.flex = "1";
+      markColumn.className = "col-12 col-sm-6";
+
+      const markFormGroup = document.createElement("div");
+      markFormGroup.className = "form-group";
 
       const markLabel = document.createElement("label");
       markLabel.textContent = `Marks per sub-question:`;
-      markLabel.className = "question-label";
-      markLabel.style.display = "block";
-      markLabel.style.marginBottom = "5px";
-      markColumn.appendChild(markLabel);
+      markLabel.className = "form-label";
+      markLabel.setAttribute("for", `markPerSubQ${i}`);
+      markFormGroup.appendChild(markLabel);
 
       const markInput = document.createElement("input");
       markInput.type = "number";
+      markInput.name = `q${i}_marks_per_sub`; // Changed to format q1_marks_per_sub
       markInput.id = `markPerSubQ${i}`;
       markInput.placeholder = "Marks per sub-question";
-      markInput.className = "mark-per-sub-input";
-      markInput.min = "0.1";
-      markInput.step = "0.1";
-      markInput.style.width = "100%";
-      markColumn.appendChild(markInput);
-
-      // Quick format label
-      const formatInfo = document.createElement("div");
-      formatInfo.className = "format-info";
-      formatInfo.innerHTML = '<small class="text-muted">Format: [count]x[marks] or [count]*[marks] (e.g., "5x2" or "5*2")</small>';
-      formatInfo.style.marginTop = "10px";
-      formatInfo.style.marginBottom = "5px";
-
-      // Single input for format like "5x2"
-      const formatColumn = document.createElement("div");
-      formatColumn.style.flex = "1";
-
-      const formatLabel = document.createElement("label");
-      formatLabel.textContent = `Quick Format (e.g., 5x2 or 5*2):`;
-      formatLabel.className = "question-label";
-      formatLabel.style.display = "block";
-      formatLabel.style.marginBottom = "5px";
-      formatColumn.appendChild(formatLabel);
-
-      const formatInput = document.createElement("input");
-      formatInput.type = "text";
-      formatInput.id = `format${i}`;
-      formatInput.placeholder = "e.g., 5x2 or 5*2 for 5 sub-questions of 2 marks each";
-      formatInput.className = "format-input";
-      formatInput.style.width = "100%";
-      formatColumn.appendChild(formatInput);
-
-      // Add quick format input event
-      formatInput.addEventListener('input', function() {
-        const formatValue = this.value.trim();
-        // Check if the input matches the pattern NxM or N*M where N and M are numbers
-        const formatMatch = formatValue.match(/^(\d+)[x*](\d*\.?\d+)$/);
-
-        if (formatMatch) {
-          const count = parseInt(formatMatch[1]);
-          const markValue = parseFloat(formatMatch[2]);
-
-          // Set the count and mark values in their respective inputs
-          if (count > 0) {
-            document.getElementById(`subQuestion${i}`).value = count;
-          }
-
-          if (markValue > 0) {
-            document.getElementById(`markPerSubQ${i}`).value = markValue;
-          }
-
-          // Generate the sub marks fields
-          if (count > 0) {
-            generateSubFullMarks(i, count, i, markValue);
-          }
-        }
-      });
-
-      // Check for existing values in edit mode
-      let subQCount = 0;
-      if (editing === 'true' && typeof subjectedit !== 'undefined') {
-        if (subjectedit[i]) {
-          if (Array.isArray(subjectedit[i])) {
-            // If it's an array, the first element could be the count or we determine count from array length
-            if (subjectedit[i][0] && !isNaN(parseInt(subjectedit[i][0]))) {
-              // First element is the count
-              subQCount = parseInt(subjectedit[i][0]);
-            } else {
-              // Count is the array length minus the hidden count field
-              subQCount = subjectedit[i].length > 0 ? subjectedit[i].length - 1 : 0;
-            }
-
-            input.value = subQCount;
-            console.log(`Question ${i}: Setting sub-question count to ${subQCount} from array:`, subjectedit[i]);
-          } else {
-            // If not an array, use the value directly
-            input.value = subjectedit[i];
-            subQCount = parseInt(subjectedit[i]);
-            console.log(`Question ${i}: Setting sub-question count to ${subQCount} from value:`, subjectedit[i]);
-          }
-        }
-      }
-
-      // Add input event for sub-question count
-      input.addEventListener('input', function() {
-        const markPerSubQ = document.getElementById(`markPerSubQ${i}`).value || 0;
-        generateSubFullMarks(i, this.value, i, markPerSubQ);
-      });
-
-      // Add input event for mark per sub-question
-      markInput.addEventListener('input', function() {
-        const subQCount = document.getElementById(`subQuestion${i}`).value;
-        if (subQCount && parseInt(subQCount) > 0) {
-          generateSubFullMarks(i, subQCount, i, this.value);
-        }
-      });
+      markInput.className = "form-control mark-per-sub-input";
+      markInput.min = "0";
+      markInput.step = "0.5";
+      markFormGroup.appendChild(markInput);
+      
+      markColumn.appendChild(markFormGroup);
 
       // Add columns to the row
       inputRow.appendChild(countColumn);
       inputRow.appendChild(markColumn);
-
-      // Create another row for the format input
-      const formatRow = document.createElement("div");
-      formatRow.style.display = "flex";
-      formatRow.style.marginBottom = "15px";
-      formatRow.appendChild(formatColumn);
-
-      // Add rows to the container
       questionContainer.appendChild(inputRow);
-      questionContainer.appendChild(formatRow);
+      
+      // Container for sub-questions display
+      const subQuestionsContainer = document.createElement("div");
+      subQuestionsContainer.id = `subQuestions_${i}_container`;
+      subQuestionsContainer.className = "sub-questions-container mt-3";
+      questionContainer.appendChild(subQuestionsContainer);
+      
+      // Add event listeners to generate sub-questions
+      input.addEventListener('input', function() {
+        generateSubQuestions(i, this.value, markInput.value);
+      });
+      
+      markInput.addEventListener('input', function() {
+        if (input.value > 0) {
+          generateSubQuestions(i, input.value, this.value);
+        }
+      });
 
-      const fmDiv = document.createElement("div");
-      fmDiv.id = `subFmContainer${i}`;
-      fmDiv.className = "fm-container";
-      fmDiv.style.marginTop = "10px";
-      fmDiv.style.backgroundColor = "#f8f9fa";
-      fmDiv.style.padding = "10px";
-      fmDiv.style.borderRadius = "5px";
-      questionContainer.appendChild(fmDiv);
+      // Check for existing values in edit mode
+      if (editing === 'true' && typeof subjectedit !== 'undefined' && subjectedit[i]) {
+        // Set sub-question count
+        if (subjectedit[i].subcount) {
+          input.value = subjectedit[i].subcount;
+        }
+        
+        // Set marks per sub-question
+        if (subjectedit[i].marks_per_sub) {
+          markInput.value = subjectedit[i].marks_per_sub;
+        }
+        
+        // Set sub-parts if they exist
+        if (subjectedit[i].has_subparts) {
+          checkbox.checked = true;
+          subPartsDiv.style.display = 'block';
+          
+          if (subjectedit[i].subsub_count) {
+            subSubCountInput.value = subjectedit[i].subsub_count;
+          }
+          
+          if (subjectedit[i].marks_per_subpart) {
+            subSubMarksInput.value = subjectedit[i].marks_per_subpart;
+          }
+        }
+      }
 
       subContainer.appendChild(questionContainer);
-
-      // Generate initial full marks inputs if value exists
-      if (input.value && parseInt(input.value) > 0) {
-        generateSubFullMarks(i, input.value, i);
-      }
     }
-  }  function generateSubFullMarks(index, count, name, markPerSubQ = null) {
-    const container = document.getElementById(`subFmContainer${index}`);
-    container.innerHTML = "";
-
-    let number = parseInt(count);
-
-    if (isNaN(number) || number <= 0) {
-      container.innerHTML = '<div style="color: red; margin: 10px 0;">Please enter a valid count (minimum 1)</div>';
-      return;
-    }
-
-    // Show a summary of the marks structure
-    const summary = document.createElement("div");
-    summary.className = "marks-summary";
-    summary.style.marginBottom = "15px";
-    summary.style.padding = "5px 10px";
-    summary.style.backgroundColor = "#e3f2fd";
-    summary.style.borderRadius = "5px";
-    summary.style.borderLeft = "4px solid #0d6efd";
-
-    if (markPerSubQ && !isNaN(parseFloat(markPerSubQ)) && parseFloat(markPerSubQ) > 0) {
-      const totalMarks = number * parseFloat(markPerSubQ);
-      summary.innerHTML = `<b>Summary:</b> ${number} sub-questions × ${markPerSubQ} marks each = ${totalMarks} total marks`;
-    } else {
-      summary.innerHTML = `<b>Summary:</b> ${number} sub-questions`;
-    }
-
-    container.appendChild(summary);
-
-    // Create a heading for the sub-questions section
-    const heading = document.createElement("div");
-    heading.className = "fm-heading";
-    heading.textContent = `Full marks for each sub-question in Q.${index}:`;
-    container.appendChild(heading);
-
-    // Create a wrapper for the inputs
-    const inputsWrapper = document.createElement("div");
-    inputsWrapper.className = "fm-inputs-wrapper";
-    inputsWrapper.style.display = "grid";
-    inputsWrapper.style.gridTemplateColumns = "repeat(auto-fill, minmax(150px, 1fr))";
-    inputsWrapper.style.gap = "10px";
-
-    // Add a hidden input with the sub-question count as the first element in the array
-    const countInput = document.createElement("input");
-    countInput.type = "hidden";
-    countInput.name = `${index}`; // Same name as mark inputs to be part of array
-    countInput.value = number;    // This is the sub-question count
-    inputsWrapper.appendChild(countInput);
-
-    // Now add the mark inputs - all with the same name to create an array
-    for (let i = 1; i <= number; i++) {
-      const inputContainer = document.createElement("div");
-      inputContainer.className = "fm-input-container";
-
-      const label = document.createElement("label");
-      label.textContent = `Q${index}.${String.fromCharCode(96 + i)}:`;
-      label.className = "fm-label";
-      inputContainer.appendChild(label);
-
-      const fmInput = document.createElement("input");
-      fmInput.type = "number";
-      fmInput.name = `${name}`; // Using the same name to make all inputs part of the same array
-      fmInput.placeholder = `Marks`;
-      fmInput.required = true;
-      fmInput.step = "0.01";
-      fmInput.className = "fm-input";
-      fmInput.dataset.subQuestion = i; // Add data attribute to help with debugging
-
-      // If markPerSubQ is provided, use that value for all inputs
-      if (markPerSubQ && !isNaN(parseFloat(markPerSubQ)) && parseFloat(markPerSubQ) > 0) {
-        fmInput.value = parseFloat(markPerSubQ);
-      }
-      // Otherwise, set value if editing and value exists in subjectedit
-      else if (editing === 'true' && subjectedit) {
-        if (subjectedit[index] && Array.isArray(subjectedit[index]) && i < subjectedit[index].length) {
-          fmInput.value = subjectedit[index][i];
-          console.log(`Setting mark for Q${index}.${String.fromCharCode(96+i)} to ${subjectedit[index][i]}`);
-        }
-      }
-
-      inputContainer.appendChild(fmInput);
-      inputsWrapper.appendChild(inputContainer);
-    }
-
-    container.appendChild(inputsWrapper);
-
-    // Add a button to apply the same marks to all inputs
-    const applyAllContainer = document.createElement("div");
-    applyAllContainer.className = "apply-all-container";
-    applyAllContainer.style.marginTop = "15px";
-    applyAllContainer.style.display = "flex";
-    applyAllContainer.style.alignItems = "center";
-    applyAllContainer.style.gap = "10px";
-
-    const applyAllInput = document.createElement("input");
-    applyAllInput.type = "number";
-    applyAllInput.placeholder = "Mark value for all";
-    applyAllInput.className = "apply-all-input";
-    applyAllInput.step = "0.01";
-    applyAllInput.min = "0";
-    applyAllInput.style.width = "150px";
-
-    const applyAllButton = document.createElement("button");
-    applyAllButton.type = "button";
-    applyAllButton.textContent = "Apply to All";
-    applyAllButton.className = "btn btn-sm btn-outline-primary";
-
-    applyAllButton.addEventListener('click', function() {
-      const value = applyAllInput.value;
-      if (value && !isNaN(parseFloat(value))) {
-        const inputs = container.querySelectorAll('.fm-input');
-        inputs.forEach(input => {
-          input.value = parseFloat(value);
-        });
-
-        // Update the marks summary
-        if (number > 0) {
-          const totalMarks = number * parseFloat(value);
-          summary.innerHTML = `<b>Summary:</b> ${number} sub-questions × ${value} marks each = ${totalMarks} total marks`;
-        }
-
-        // Update the mark per sub question input
-        const markPerSubQInput = document.getElementById(`markPerSubQ${index}`);
-        if (markPerSubQInput) {
-          markPerSubQInput.value = value;
-        }
-      }
-    });
-
-    applyAllContainer.appendChild(applyAllInput);
-    applyAllContainer.appendChild(applyAllButton);
-
-    container.appendChild(applyAllContainer);
-
-    console.log(`Generated ${number} mark inputs for question ${index} with name ${name}, markPerSubQ: ${markPerSubQ}`);
   }
 
 </script>
@@ -533,7 +780,7 @@
 
   <div class="form-group">
     <label for="max">Maximum Questions</label>
-    <input type="number" id="max" name="max" required oninput="generateInput()"
+    <input type="number" id="max" name="max" required
            value="<%= editing ? subjectedit.max : '' %>" 
            placeholder="Enter Maximum Question Number"
            class="form-control ios-input" min="1">
@@ -593,6 +840,189 @@
 
     .gap-3 {
       gap: 1rem;
+    }
+    
+    /* Question form styling - Improved for responsiveness */
+    .question-container {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      border: 1px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+    
+    .question-container:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .question-heading {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #0d6efd;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    
+    /* Responsive card layout */
+    .card {
+      transition: all 0.2s ease;
+      border: 1px solid #e9ecef;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .card:hover {
+      border-color: #0d6efd;
+      box-shadow: 0 4px 6px rgba(13, 110, 253, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .card-header {
+      background-color: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      font-weight: 600;
+    }
+    
+    .card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sub-questions-container {
+      margin-top: 15px;
+    }
+    
+    /* Improved sub-parts container */
+    .sub-parts-container {
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 10px;
+      border-left: 3px solid #0d6efd;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      width: 100%;
+    }
+    
+    .subparts-summary {
+      background-color: rgba(13, 110, 253, 0.1);
+      border-left: 3px solid #0d6efd;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+    
+    .form-check-input:checked ~ .form-check-label {
+      color: #0d6efd;
+      font-weight: 500;
+    }
+    
+    /* Animated transitions */
+    .sub-parts-container {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease-out, opacity 0.5s ease, padding 0.3s ease;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    
+    .sub-parts-container[style*="display: block"] {
+      max-height: 800px; /* Increased for more content */
+      opacity: 1;
+      padding: 15px;
+    }
+    
+    /* Improved grid layout for sub-questions */
+    .row-cols-1.row-cols-md-2.row-cols-lg-3.g-3 {
+      margin-left: -8px;
+      margin-right: -8px;
+      width: 100%;
+    }
+    
+    .row-cols-1.row-cols-md-2.row-cols-lg-3.g-3 > .col {
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+    
+    /* Style for the sub-parts inputs */
+    .input-group-text {
+      background-color: #0d6efd;
+      color: white;
+      font-weight: 600;
+      border-color: #0d6efd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    /* Roman numeral styling */
+    .roman-numeral {
+      font-style: italic;
+      font-weight: 700;
+      margin-left: 2px;
+      font-family: 'Times New Roman', serif;
+    }
+    
+    /* Responsive inputs */
+    .input-group {
+      width: 100%;
+    }
+    
+    .input-group .form-control {
+      width: 100%;
+      min-width: 60px;
+    }
+    
+    /* Better animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    
+    /* Mobile-specific adjustments */
+    @media (max-width: 576px) {
+      .question-container {
+        padding: 10px;
+      }
+      
+      .row-cols-1.row-cols-md-2.row-cols-lg-3.g-3 > .col {
+        padding: 4px;
+      }
+      
+      .card {
+        margin-bottom: 8px;
+      }
+      
+      .card-header {
+        padding: 8px;
+      }
+      
+      .card-body {
+        padding: 10px;
+      }
+      
+      .subparts-summary {
+        font-size: 0.8rem;
+        padding: 6px;
+      }
+      
+      .input-group-text {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+      }
     }
   </style>
 
@@ -1238,10 +1668,7 @@ if (editing === 'true') {
         const data = await res.json();
 
         if (data.exists) {
-          alert(`Subject ${subject} for class ${studentClass} already exists! Please delete the existing subject before adding a new one.`);
-          subjectInput.value = '';
-          classInput.value = '';
-          return;
+          alert(`Subject ${subject} for class ${studentClass} already exists!`);
         }
       } catch (err) {
         console.error('Error checking subject:', err);

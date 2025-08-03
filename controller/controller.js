@@ -472,8 +472,73 @@ exports.saveForm = async (req, res, next) => {
   } else {
     try {
       const model = getSubjectModel(subjectinput, studentClass, section, terminal);
-      await model.create(req.body);
-      res.render("FormPostMessage", {
+      
+      // Process form data to handle dot notation in field names
+      const formData = req.body;
+      const processedData = {};
+      
+      console.log("===== FORM SUBMISSION DEBUG =====");
+      console.log("Raw form data:", formData);
+      console.log("Raw form data keys:", Object.keys(formData));
+      
+      // Check for issues with form encoding
+      if (Object.keys(formData).length > 0) {
+        console.log("First field:", Object.keys(formData)[0], "=", formData[Object.keys(formData)[0]]);
+      }
+      
+      console.log("Looking for subpart fields with dots...");
+      
+      // Check if we have any subpart fields with dot notation
+      const dotFields = Object.keys(formData).filter(key => key.includes('.'));
+      console.log("Fields with dots:", dotFields);
+      
+      // Inspect specific fields that should have dots
+      for (const key of Object.keys(formData)) {
+        if (key.match(/q\d+[a-z]/) && !key.includes('.')) {
+          console.log(`Found possible subpart without dots: ${key}`);
+        }
+      }
+      
+      // Process each field, replacing dots with _dot_ for MongoDB compatibility
+      Object.keys(formData).forEach(key => {
+        // If it's a question field with dots, replace the dots
+        if (key.startsWith('q') && key.includes('.')) {
+          const processedKey = key.replace(/\./g, '_');
+          // Convert string values to numbers where appropriate
+          const value = !isNaN(parseFloat(formData[key])) ? 
+            parseFloat(formData[key]) : formData[key];
+          processedData[processedKey] = value;
+          console.log(`Processing field with dot: ${key} → ${processedKey} = ${value}`);
+        } else {
+          // Keep other fields as is
+          processedData[key] = formData[key];
+        }
+      });
+      
+      // Log the processed data
+      console.log("Processed data keys:", Object.keys(processedData));
+      console.log("Processed subpart fields:", Object.keys(processedData).filter(key => key.includes('_')));
+      
+      try {
+        // Double check for any field name issues before saving
+        const finalData = {};
+        
+        Object.keys(processedData).forEach(key => {
+          if (key.includes('_')) {
+            // Ensure these are saved correctly in the database
+            finalData[key] = processedData[key];
+            console.log(`Confirmed final field: ${key} = ${processedData[key]}`);
+          } else {
+            finalData[key] = processedData[key];
+          }
+        });
+        
+        // Create record with processed data
+        const savedData = await model.create(finalData);
+        console.log("Data saved successfully with ID:", savedData._id);
+        console.log("===== END DEBUG =====");
+        
+        res.render("FormPostMessage", {
         subjectinput,
         studentClass,
         section,
@@ -481,11 +546,18 @@ exports.saveForm = async (req, res, next) => {
         forClass: studentClass,
         ...(await getSidenavData(req))
       });
-    } catch (err) {
-      console.log(err);
-    }
+      
+  }catch(err)
+  {
+    console.error("Error saving data:", err.message);
   }
-};
+
+}catch(err)
+{
+    console.error("Error processing form data:", err.message);
+}
+  }
+}
 
 exports.findData = async (req, res) => {
   try {
@@ -1160,3 +1232,9 @@ else
 }
 };
 
+exports.newform = async (req,res,next) =>
+{
+  const subjectlistdb = await subjectlist.find({forClass:"5",subject:"SCIENCE"})
+  return res.render("newform",{subjectlistdb})
+  
+}

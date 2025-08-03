@@ -1,44 +1,27 @@
 const mongoose = require("mongoose");
 
 const subjectSchema = new mongoose.Schema({
-"subject":{ type: String,required: false},
-"forClass":{ type: String,required: false},
-"max":{ type: String,required: false},
-"questionPaperOfClass":{ type: String,required: false},
-
-    '1': { type: [String], required: false },
-  '2': { type: [String], required: false },
-  '3': { type: [String], required: false },
-  '4': { type: [String], required: false },
-  '5': { type: [String], required: false },
-  '6': { type: [String], required: false },
-  '7': { type: [String], required: false },
-  '8': { type: [String], required: false },
-  '9': { type: [String], required: false },
-  '10': { type: [String], required: false },
-  '11': { type: [String], required: false },
-  '12':{type:[String],required: false},
-  '13':{type:[String],required: false},
-  '14':{type:[String],required: false},
-  '15':{type:[String],required: false},
-  '16':{type:[String],required: false},
-  '17':{type:[String],required: false},
-  '18':{type:[String],required: false},
-  '19':{type:[String],required: false},
-  '20':{type:[String],required: false},
-  '21':{type:[String],required: false},
-  '22':{type:[String],required: false},
-  '23':{type:[String],required: false},
-  '24':{type:[String],required: false},
-  '25':{type:[String],required: false},
-  '26':{type:[String],required: false},
-  '27':{type:[String],required: false},
-  '28':{type:[String],required: false},
-  '29':{type:[String],required: false},
-  '30':{type:[String],required: false},
+  "subject": { type: String, required: false },
+  "forClass": { type: String, required: false },
+  "max": { type: String, required: false },
+  "questionPaperOfClass": { type: String, required: false },
   
-
-
+  // Add a specific field for each question type
+  // This tells Mongoose that these fields are expected and should be saved
+  // The schema is still flexible with strict:false, but this adds clarity
+  
+  // Example fields for question formats like q1a, q1b, etc.
+  // MongoDB will still accept any field starting with q due to strict:false
+  "q1a": { type: Number },
+  "q1b": { type: Number },
+  "q1a.i": { type: Number },
+  "q1a.ii": { type: Number },
+  "q1_subcount": { type: Number },
+  "q1_marks_per_sub": { type: Number },
+  "q1a_has_subparts": { type: Boolean },
+  "q1a_subparts_count": { type: Number },
+  "q1a_marks_per_subpart": { type: Number }
+  
 },{strict:false})
 const classSchema = new mongoose.Schema({
 

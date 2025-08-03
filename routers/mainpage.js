@@ -43,6 +43,7 @@ student.get('/',verifytoken,authorized,controller.homePage)
 student.get('/admin/term/:terminal',verifytoken,authorized,isAdmin,admincontrol.admin)
 student.get('/report',verifytoken,authorized,isAdmin,admincontrol.report)
 student.get('/reportprint',verifytoken,authorized,isAdmin,admincontrol.reportprint)
+student.get('/newform',verifytoken,authorized,controller.newform)
 
 student.get('/admin/marksheetsetup',verifytoken,authorized,isAdmin,admincontrol.marksheetSetupForm)
 student.post('/admin/marksheetsetup',verifytoken,authorized,isAdmin,admincontrol.marksheetSetupSave)

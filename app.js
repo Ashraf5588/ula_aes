@@ -69,7 +69,11 @@ app.set('views',path.join(__dirname,'views'))
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json())
 app.use(cookieParser());
-app.use(express.urlencoded({extended:true}))
+app.use(express.urlencoded({
+  extended: true,
+  // Allow dots in field names to be part of the field name and not create nested objects
+  allowDots: true
+}))
 
 // app.use(verifytoken); // Apply token verification middleware globally
 connection();
