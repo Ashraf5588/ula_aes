@@ -81,7 +81,7 @@ student.get('/teacher/:subject/:controller',verifytoken,authorized,controller.st
 
 student.get('/findData/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.findData)
 student.get('/findData/:subjectinput/:studentClass/:section/:termwise/:status',verifytoken,authorized,controller.termwisestatus)
-student.get('/findData/:subjectinput/:studentClass/:section/:termwise/:termwisereport/:status',verifytoken,authorized,controller.termwisedata)
+// student.get('/findData/:subjectinput/:studentClass/:section/:termwise/:termwisereport/:status',verifytoken,authorized,controller.termwisedata)
 student.get('/findData/:subjectinput/:studentClass/:section/:termwise/:termwisereport/:status/:qno/:terminal',verifytoken,authorized,controller.termdetail)
 
 student.get('/student_data/:subjectinput/:studentClass/:section/:terminal', verifytoken,authorized,controller.studentrecord)
@@ -118,7 +118,7 @@ student.get('/debug/:subjectinput/:studentClass/:section/:terminal',verifytoken,
 });
 
 student.get('/studentData/:subjectinput/:studentClass/:section/:qno/:status/:terminal',verifytoken,authorized,controller.studentData)
-student.get('/totalStudent/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.totalStudent)
+// student.get('/totalStudent/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.totalStudent)
 student.get('/checkroll/:subjectinput/:studentClass/:section/:terminal',verifytoken,authorized,controller.checkroll)
 student.get('/checksubjectexist',verifytoken,authorized,admincontrol.subjectlistcheck)
 // Debug route to check available subjects

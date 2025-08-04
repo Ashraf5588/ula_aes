@@ -593,6 +593,30 @@ exports.findData = async (req, res) => {
     const subjectData = await getSubjectData(subjectinput,studentClass,section,terminal, res);
 
 
+const keyValues = {};
+const roman = ['i','ii','iii','iv','v','vi','vii','viii','ix','x'];
+
+for (const key in subjectData) {
+  // Match keys like q1a, q2b, q3e, etc.
+  if (/^q\d+[a-z]$/.test(key)) {
+    const hasSubparts = subjectData[`${key}_has_subparts`] === "on";
+    const subpartsCount = parseInt(subjectData[`${key}_subparts_count`] || 0);
+    const marksPerSubpart = parseFloat(subjectData[`${key}_marks_per_subpart`] || 0);
+    const marks = parseFloat(subjectData[key]);
+
+    if (hasSubparts && subpartsCount > 0) {
+      for (let i = 0; i < subpartsCount; i++) {
+        const subKey = `${key}_${roman[i]}`;
+        keyValues[subKey] = marksPerSubpart;
+      }
+    } else {
+      keyValues[key] = marks;
+    }
+  }
+}
+
+
+
     if (!subjectData) {
       console.log(`No subject data found for ${subjectinput}`);
       return;
@@ -600,6 +624,8 @@ exports.findData = async (req, res) => {
     
     const model = getSubjectModel(subjectinput,studentClass, section, terminal);
 
+    console.log("===== RETRIEVING DATA =====");
+    console.log("Looking for data with subparts...");
    
 
 
@@ -645,17 +671,15 @@ if (sub && sub.length > 0) {
 
 );
 }
+ 
 
 
-    const max = parseInt(subjectData.max)
 
 // Build result array for DataTable with question-wise statistics
-for (let i = 1; i <= max; i++) {
-  let n = subjectData[i][0]
-  if(subjectData[i]===0){n=1}
-  for (j = 0; j < n; j++) {
-    const questionKey = `q${i}${String.fromCharCode(97+j)}`;
-    const fullMarks = parseFloat(subjectData[i.toString()][j+1]);
+for ( const key in keyValues) {
+  const questionKey = key;
+  const fullMarks = keyValues[key];
+
     
     // Get the total marks for this question
     const questionTotal = total.find(t => t.qno === questionKey);
@@ -705,25 +729,22 @@ for (let i = 1; i <= max; i++) {
       fullMarks: fullMarks
     });
   }
-}
 
 // Sort result by wrong count (most wrong first)
 result.sort((a, b) => b.wrong - a.wrong);
 let s= 0;
-    for (let i = 1; i <= max; i++) {
-      let n = subjectData[i][0]
-      if(subjectData[i]===0){n=1}
-      for (j = 0; j < n; j++) {
-          
-           let fullMarks=parseFloat(subjectData[i.toString()][j+1]) 
+for (const key in keyValues) {
+      const fullMarks = keyValues[key];
+      const questionKey = key;
+  
            
              
             //       const data = await model.find({subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`}, { _id: 0, __v: 0 }).lean();
             //         data.forEach((item) => {
-            //         s=s+item[`q${i}${String.fromCharCode(97+j)}`];
+            //         s=s+item[questionKey];
             //  });
             //  avg.push({
-            //   qno: `q${i}${String.fromCharCode(97+j)}`,
+            //   qno: questionKey,
               
             //   average: (s / data.length),
             // });
@@ -731,61 +752,61 @@ let s= 0;
 
  const inCorrectData = await model.find({
   subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`,
-  [`q${i}${String.fromCharCode(97+j)}`]: 0,
-}, { _id: 0,[`q${i}${String.fromCharCode(97+j)}`]:1,name:1,roll:1 }).lean();
+  [questionKey]: 0,
+}, { _id: 0,[questionKey]:1,name:1,roll:1 }).lean();
 inCorrect.push({
- qno: `q${i}${String.fromCharCode(97+j)}`,
+ qno: questionKey,
  studentName: inCorrectData.map(item => item.name),
  total: inCorrectData.length,
   fullMarks: fullMarks,
-obtainedMarks:inCorrectData.map(item=>item[`q${i}${String.fromCharCode(97+j)}`]),
+obtainedMarks:inCorrectData.map(item=>item[questionKey]),
 });
 const CorrectData = await model.find({
   subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`,
-  [`q${i}${String.fromCharCode(97+j)}`]: fullMarks,
-}, { _id: 0,[`q${i}${String.fromCharCode(97+j)}`]:1,name:1,roll:1 }).lean();
+  [questionKey]: fullMarks,
+}, { _id: 0,[questionKey]:1,name:1,roll:1 }).lean();
 Correct.push({
-  qno: `q${i}${String.fromCharCode(97+j)}`,
+  qno: questionKey,
   studentName: CorrectData.map(item => item.name),
   total: CorrectData.length,
   fullMarks: fullMarks,
-  obtainedMarks:CorrectData.map(item=>item[`q${i}${String.fromCharCode(97+j)}`]),
+  obtainedMarks:CorrectData.map(item=>item[questionKey]),
 });
 const fiftyData = await model.find({
   subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`,
-  [`q${i}${String.fromCharCode(97+j)}`]:  0.5 * fullMarks,
-}, { _id: 0,[`q${i}${String.fromCharCode(97+j)}`]:1,name:1,roll:1 }).lean();
+  [questionKey]:  0.5 * fullMarks,
+}, { _id: 0,[questionKey]:1,name:1,roll:1 }).lean();
 
 fifty.push({
-  qno: `q${i}${String.fromCharCode(97+j)}`,
+  qno: questionKey,
   studentName: fiftyData.map(item => item.name),
   total: fiftyData.length,
   fullMarks: fullMarks,
-  obtainedMarks:fiftyData.map(item=>item[`q${i}${String.fromCharCode(97+j)}`]),
+  obtainedMarks:fiftyData.map(item=>item[questionKey]),
 });
 
 const CorrectAbove50Data = await model.find({
   subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`,
-  [`q${i}${String.fromCharCode(97+j)}`]: { $gt: 0.5 * fullMarks, $lt: fullMarks },
-}, { _id: 0,[`q${i}${String.fromCharCode(97+j)}`]:1,name:1,roll:1 }).lean();
+  [questionKey]: { $gt: 0.5 * fullMarks, $lt: fullMarks },
+}, { _id: 0,[questionKey]:1,name:1,roll:1 }).lean();
 CorrectAbove50.push({ 
-  qno: `q${i}${String.fromCharCode(97+j)}`,
+  qno: questionKey,
   studentName: CorrectAbove50Data.map(item => item.name),
   total: CorrectAbove50Data.length,
   fullMarks: fullMarks,
-  obtainedMarks:CorrectAbove50Data.map(item=>item[`q${i}${String.fromCharCode(97+j)}`]),
+  obtainedMarks:CorrectAbove50Data.map(item=>item[questionKey]),
 });
 const CorrectBelow50Data = await model.find({
   subject: `${subjectinput}`,studentClass: `${studentClass}`, section: `${section}`, terminal: `${terminal}`,
-  [`q${i}${String.fromCharCode(97+j)}`]: { $lt: 0.5 * fullMarks, $gt: 0 },
-}, { _id: 0,[`q${i}${String.fromCharCode(97+j)}`]:1,name:1,roll:1 }).lean();
+  [questionKey]: { $lt: 0.5 * fullMarks, $gt: 0 },
+}, { _id: 0,[questionKey]:1,name:1,roll:1 }).lean();
 
 CorrectBelow50.push({
-  qno: `q${i}${String.fromCharCode(97+j)}`,
+  qno: questionKey,
   studentName: CorrectBelow50Data.map(item => item.name),
   total: CorrectBelow50Data.length,
   fullMarks: fullMarks,
-  obtainedMarks:CorrectBelow50Data.map(item=>item[`q${i}${String.fromCharCode(97+j)}`]),
+  obtainedMarks:CorrectBelow50Data.map(item=>item[questionKey]),
 });
 
        
@@ -793,8 +814,7 @@ CorrectBelow50.push({
        
        
       }
-    }
-
+    
   
     
    
@@ -804,14 +824,13 @@ CorrectBelow50.push({
     const allArr = [];
 
 
-  for (let i = 1; i <= max; i++) {
-    let n = subjectData[i]
-    if(subjectData[i]===0){n=1}
-    for (j = 0; j < n; j++) {
+for (const key in keyValues) {
+  const questionKey = key;
+  const fullMarks = keyValues[key];
 
-  const incorrectStudentData = await model.find({subject:`${subjectinput}`,section:`${section}`,terminal:`${terminal}`,studentClass:`${studentClass}`,[`q${i}${String.fromCharCode(97+j)}`]:'incorrect'})
+  const incorrectStudentData = await model.find({subject:`${subjectinput}`,section:`${section}`,terminal:`${terminal}`,studentClass:`${studentClass}`,[questionKey]:0})
 allArr.push({
-  questionNo: `q${i}${String.fromCharCode(97+j)}`,
+  questionNo: questionKey,
   studentClass: studentClass,
   section: section,
   terminal: terminal,
@@ -819,7 +838,7 @@ allArr.push({
     });
 }
 
-  }
+  
 
 
 try {
@@ -948,25 +967,25 @@ const model = getSubjectModel(subjectinput,studentClass,section,terminal);
      
         const term1data = await model.find(
           {
-            [`q${i}${String.fromCharCode(97+j)}`]: `${status}`,
+            [questionKey]: `${status}`,
             terminal: "first",studentClass:`${studentClass}`,section:`${section}`
           },
-          { roll: 1, name: 1, _id: 0, [`q${i}${String.fromCharCode(97+j)}`]: 1 }
+          { roll: 1, name: 1, _id: 0, [questionKey]: 1 }
         );
 
         const term2data = await model.find(
           {
-            [`q${i}${String.fromCharCode(97+j)}`]: `${status}`,
+            [questionKey]: `${status}`,
             terminal: "second",studentClass:`${studentClass}`,section:`${section}`
           },
-          { roll: 1, name: 1, _id: 0, [`q${i}${String.fromCharCode(97+j)}`]: 1 }
+          { roll: 1, name: 1, _id: 0, [questionKey]: 1 }
         );
         const term3data = await model.find(
           {
-            [`q${i}${String.fromCharCode(97+j)}`]: `${status}`,
+            [questionKey]: `${status}`,
             terminal: "third",studentClass:`${studentClass}`,section:`${section}`
           },
-          { roll: 1, name: 1, _id: 0, [`q${i}${String.fromCharCode(97+j)}`]: 1 }
+          { roll: 1, name: 1, _id: 0, [questionKey]: 1 }
         );
         
 
@@ -982,7 +1001,7 @@ const model = getSubjectModel(subjectinput,studentClass,section,terminal);
         const count123 = common123.length
         
         term.push({
-          questionNo: `q${i}${String.fromCharCode(97+j)}`,
+          questionNo: questionKey,
           data12:count12,
           data13:count13,
           data23:count23,
@@ -1119,66 +1138,66 @@ exports.studentData = async (req, res, next) => {
   });
 };
 
-  exports.totalStudent = async (req, res, next) => {
-    const { subjectinput, studentClass, section, terminal } = req.params;
-    const model = getSubjectModel(subjectinput, studentClass, section, terminal);
-    const incorrectdata = [];
+  // exports.totalStudent = async (req, res, next) => {
+  //   const { subjectinput, studentClass, section, terminal } = req.params;
+  //   const model = getSubjectModel(subjectinput, studentClass, section, terminal);
+  //   const incorrectdata = [];
     
-    try {
-      // Use the helper function to safely get subject data
-      const subjectData = await getSubjectData(subjectinput,studentClass,section,terminal, res);
-      if (!subjectData) {
-        console.log(`No subject data found for ${subjectinput}`);
-        return;
-      } 
-      // If subject data is null, the helper function has already sent a response
-      if (!subjectData) {
-        return;
-      }
+  //   try {
+  //     // Use the helper function to safely get subject data
+  //     const subjectData = await getSubjectData(subjectinput,studentClass,section,terminal, res);
+  //     if (!subjectData) {
+  //       console.log(`No subject data found for ${subjectinput}`);
+  //       return;
+  //     } 
+  //     // If subject data is null, the helper function has already sent a response
+  //     if (!subjectData) {
+  //       return;
+  //     }
   
-      const max = parseInt(subjectData.max);
+  //     const max = parseInt(subjectData.max);
       
-      for (let i = 1; i <= max; i++) {
-        let n = subjectData[i] || 1;  // Ensure n is at least 1
+  //     for (let i = 1; i <= max; i++) {
+  //       let n = subjectData[i] || 1;  // Ensure n is at least 1
   
-        for (let j = 0; j <= n; j++) {
-          const incorrectname = await model.find({
-            studentClass: studentClass,
-            section: section,
-            terminal: terminal,
-            [`q${i}${String.fromCharCode(97 + j)}`]: "incorrect",
-          });
+  //       for (let j = 0; j <= n; j++) {
+  //         const incorrectname = await model.find({
+  //           studentClass: studentClass,
+  //           section: section,
+  //           terminal: terminal,
+  //           [`q${i}${String.fromCharCode(97 + j)}`]: "incorrect",
+  //         });
   
-          incorrectname.forEach(student => {
-            incorrectdata.push({
-              questionNo: `q${i}${String.fromCharCode(97 + j)}`,
-              studentname: student.name,  // Extract names correctly
-            });
-          });
+  //         incorrectname.forEach(student => {
+  //           incorrectdata.push({
+  //             questionNo: `q${i}${String.fromCharCode(97 + j)}`,
+  //             studentname: student.name,  // Extract names correctly
+  //           });
+  //         });
   
          
-        }
-      }
+  //       }
+  //     }
   
-      const totalStudent = await model
-        .find({ studentClass, section, terminal })
-        .lean();
+  //     const totalStudent = await model
+  //       .find({ studentClass, section, terminal })
+  //       .lean();
   
-      res.render("totalstudent", {
-        totalStudent,
-        subjectinput,
-        studentClass,
-        section,
-        terminal,
-        incorrectdata,  // Pass incorrect answers list to the frontend
-        ...(await getSidenavData(req))
-      });
+  //     res.render("totalstudent", {
+  //       totalStudent,
+  //       subjectinput,
+  //       studentClass,
+  //       section,
+  //       terminal,
+  //       incorrectdata,  // Pass incorrect answers list to the frontend
+  //       ...(await getSidenavData(req))
+  //     });
   
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Error fetching students:", error);
+  //     res.status(500).json({ message: "Server error" });
+  //   }
+  // };
 
 
 exports.updateQuestion = async (req, res, next) => {
