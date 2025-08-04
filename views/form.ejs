@@ -32,11 +32,11 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 40px;
-            height: 40px;
+            min-width: 48px;
+            height: 48px;
             border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 0 10px;
+            border-radius: 8px;
+            padding: 0 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             margin-bottom: 0;
@@ -143,6 +143,19 @@
         .question-progress {
             transition: width 0.3s ease;
         }
+         @media (max-width: 768px) {
+            #formDiv{
+                width: 80%;
+            }
+              .mark-option {
+                min-width: 60px;
+                height: 36px;
+                font-size: 13px;
+            }
+            .mb5{
+                width: 80%;
+            }
+         }
     </style>
 </head>
 <body>
@@ -255,15 +268,7 @@
             </section>
 
             <section id="formDiv">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="section-title">Question Assessment</h2>
-                    <div class="total-marks-display">
-                        <span class="badge bg-primary p-2 fs-6">
-                            <i class="fas fa-calculator me-1"></i> Running Total: 
-                            <span id="running-total">0</span>
-                        </span>
-                    </div>
-                </div>
+               
                 <% let subjectData = subjects.find(subject => subject.subject === subjectname && subject.forClass === studentClass); %>
                 <% let max = parseInt(subjectData.max); %>
                 <% for (let i = 1; i <= max; i++) { %>
