@@ -2632,16 +2632,46 @@ if (sub && sub.length > 0) {
 
   const subjectData = await getSubjectData(individualsubject.subject, studentClass, res);
 
+    // Add validation to prevent the error
+    if (!subjectData) {
+      console.log(`No subject data found for ${individualsubject.subject}`);
+      continue; // Skip this subject and continue with the next one
+    }
 
-    const max = parseInt(subjectData.max)
+    const keyValues = {};
+    const roman = ['i','ii','iii','iv','v','vi','vii','viii','ix','x'];
+
+    for (const key in subjectData) {
+      // Match keys like q1a, q2b, q3e, etc.
+      if (/^q\d+[a-z]$/.test(key)) {
+        const hasSubparts = subjectData[`${key}_has_subparts`] === "on";
+        const subpartsCount = parseInt(subjectData[`${key}_subparts_count`] || 0);
+        const marksPerSubpart = parseFloat(subjectData[`${key}_marks_per_subpart`] || 0);
+        const marks = parseFloat(subjectData[key] || 0);
+
+        // Validate that we have valid numbers before proceeding
+        if (hasSubparts && subpartsCount > 0 && !isNaN(marksPerSubpart) && marksPerSubpart > 0) {
+          for (let i = 0; i < subpartsCount; i++) {
+            const subKey = `${key}_${roman[i]}`;
+            keyValues[subKey] = marksPerSubpart;
+          }
+        } else if (!hasSubparts && !isNaN(marks) && marks > 0) {
+          keyValues[key] = marks;
+        }
+        // Skip any keys that don't have valid marks to avoid NaN errors
+      }
+    }
 
 // Build result array for DataTable with question-wise statistics
-for (let i = 1; i <= max; i++) {
-  let n = subjectData[i][0]
-  if(subjectData[i]===0){n=1}
-  for (j = 0; j < n; j++) {
-    const questionKey = `q${i}${String.fromCharCode(97+j)}`;
-    const fullMarks = parseFloat(subjectData[i.toString()][j+1]);
+for (const key in keyValues) {
+  const questionKey = key;
+  const fullMarks = keyValues[key];
+
+  // Skip if fullMarks is not a valid number
+  if (isNaN(fullMarks) || fullMarks <= 0) {
+    console.log(`Skipping question ${questionKey} due to invalid marks: ${fullMarks}`);
+    continue;
+  }
     
     // Get the total marks for this question
     const questionTotal = total.find(t => t.qno === questionKey);
@@ -2691,7 +2721,6 @@ for (let i = 1; i <= max; i++) {
       fullMarks: fullMarks
     });
   }
-}
 reportofClass.push(
 {
   subject: individualsubject.subject,
@@ -2715,6 +2744,11 @@ reportofClass.push(
     });
   } catch (err) {
     console.error("Error in report print controller:", err);
-    
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack,
+      params: { subjectinput, studentClass, section, terminal, academicYear }
+    });
+    res.status(500).send("Error generating report: " + err.message);
   }
 }
