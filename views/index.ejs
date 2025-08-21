@@ -479,6 +479,39 @@
             });
         });
     </script>
+    
+    <script>
+      // Home page loader handling
+      document.addEventListener('DOMContentLoaded', function() {
+        // Show loader for subject cards
+        const subjectCards = document.querySelectorAll('.subject-card a');
+        subjectCards.forEach(link => {
+          link.addEventListener('click', function(e) {
+            if (window.pageLoader) {
+              const subjectName = this.querySelector('h3')?.textContent || 'Subject';
+              window.pageLoader.show(
+                `Loading ${subjectName}...`,
+                'Preparing class selection for this subject'
+              );
+            }
+          });
+        });
+        
+        // Show loader for quick analysis button
+        const quickAnalysisBtn = document.getElementById('quickAnalysis');
+        if (quickAnalysisBtn) {
+          quickAnalysisBtn.addEventListener('click', function(e) {
+            if (window.pageLoader) {
+              window.pageLoader.show(
+                'Loading Quick Analysis...',
+                'Preparing data analysis tools'
+              );
+            }
+          });
+        }
+      });
+    </script>
+    
     <script src="/index.js"></script>
 </body>
 </html>

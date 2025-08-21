@@ -3940,5 +3940,46 @@
       });
     }
   </script>
+  
+  <!-- Page Loader -->
+  <script src="/page-loader.js"></script>
+  
+  <script>
+    // Analysis page specific loader handling
+    document.addEventListener('DOMContentLoaded', function() {
+      // Hide loader when analysis page is fully loaded
+      if (window.pageLoader) {
+        setTimeout(() => {
+          window.pageLoader.hide();
+        }, 500);
+      }
+      
+      // Show loader for any analysis-related navigation
+      const analysisLinks = document.querySelectorAll('a[href*="analysis"], a[href*="findData"]');
+      analysisLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          if (window.pageLoader && !this.getAttribute('target')) {
+            window.pageLoader.show(
+              'Analyzing Data...',
+              'Processing examination results and generating detailed insights'
+            );
+          }
+        });
+      });
+      
+      // Show loader for form submissions
+      const forms = document.querySelectorAll('form');
+      forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+          if (window.pageLoader) {
+            window.pageLoader.show(
+              'Processing Request...',
+              'Please wait while we analyze the data'
+            );
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>

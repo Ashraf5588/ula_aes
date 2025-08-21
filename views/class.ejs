@@ -388,5 +388,24 @@
       });
     });
   </script>
+  
+  <script>
+    // Class selection page loader handling
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show loader for class selection links
+      const classLinks = document.querySelectorAll('a[href*="/terminal/"]');
+      classLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          if (window.pageLoader) {
+            const className = this.querySelector('.class-title')?.textContent || 'Class';
+            window.pageLoader.show(
+              `Loading ${className}...`,
+              'Preparing terminal examinations for selected class'
+            );
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
